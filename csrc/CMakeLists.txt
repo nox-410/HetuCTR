@@ -8,10 +8,12 @@ target_include_directories(hetu_gpu_table
     ${cub_SOURCE_DIR}
     ${thrust_SOURCE_DIR}
     ${NCCL_INCLUDE_DIRS}
+    ${ZMQ_INCLUDE_DIRS}
 )
 
 target_link_libraries(hetu_gpu_table
     PRIVATE
     CUDA::cudart
     ${NCCL_LIBRARIES}
+    ${ZMQ_LIBRARIES}
 )

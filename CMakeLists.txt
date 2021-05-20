@@ -8,7 +8,10 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_CXX_FLAGS "-O3 -Wall")
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
 find_package(CUDAToolkit REQUIRED)
 
@@ -25,6 +28,7 @@ FetchContent_Declare(cub URL https://github.com/NVlabs/cub/archive/refs/tags/1.1
 message(STATUS "Preparing cub ...")
 FetchContent_MakeAvailable(cub)
 
+find_package(ZMQ 4... REQUIRED)
 find_package(pybind11 2.6... CONFIG)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc)
