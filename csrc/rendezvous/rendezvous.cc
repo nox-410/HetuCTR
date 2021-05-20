@@ -40,14 +40,20 @@ static void FreeData(void *data, void *hint) {}
 
 void TCPRendezvous::broadcast(void *data, size_t len) {
   if (rank_ == 0) {
-    zmq_msg_t msg, head, body;
-    zmq_msg_init(&head);
-    zmq_msg_init(&body);
-    zmq_msg_init_data(&msg, data, len, FreeData, NULL);
-    for (int i = 0; i < nrank_; i++) {
+    for (int i = 0; i < nrank_ - 1; i++) {
+      zmq_msg_t msg, head, body;
+      zmq_msg_init(&head);
+      zmq_msg_init(&body);
+      zmq_msg_init_data(&msg, data, len, FreeData, NULL);
+
       zmq_msg_recv(&head, socket_, 0);
       zmq_msg_recv(&body, socket_, 0);
+      zmq_msg_send(&head, socket_, ZMQ_SNDMORE);
       zmq_msg_send(&msg, socket_, 0);
+
+      zmq_msg_close(&head);
+      zmq_msg_close(&body);
+      zmq_msg_close(&msg);
     }
   } else {
     char buf[1];
@@ -70,4 +76,5 @@ TCPRendezvous::~TCPRendezvous() {
     zmq_ctx_destroy(context_);
     context_ = nullptr;
   }
+  std::cout << "Closed" << std::endl;
 }
