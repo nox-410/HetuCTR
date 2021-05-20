@@ -1,4 +1,4 @@
-#include "rendezvous/rendezvous.h"
+#include "utils/rendezvous.h"
 
 #include <nccl.h>
 #include <iostream>
