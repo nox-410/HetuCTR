@@ -1,8 +1,9 @@
 aux_source_directory(hash_table hash_table_src)
 aux_source_directory(rendezvous rendezvous_src)
 aux_source_directory(pybind pybind_src)
+aux_source_directory(core core_src)
 
-pybind11_add_module(hetu_gpu_table ${pybind_src} ${hash_table_src} ${rendezvous_src})
+pybind11_add_module(hetu_gpu_table ${pybind_src} ${hash_table_src} ${rendezvous_src} ${core_src})
 
 target_include_directories(hetu_gpu_table
     PRIVATE
@@ -21,7 +22,7 @@ target_link_libraries(hetu_gpu_table
 )
 
 # this library is for c++ unit test, so no pybind11
-add_library(hetu_gpu_table_cpp SHARED ${hash_table_src} ${rendezvous_src})
+add_library(hetu_gpu_table_cpp SHARED ${hash_table_src} ${rendezvous_src} ${core_src})
 
 target_include_directories(hetu_gpu_table_cpp
     PUBLIC

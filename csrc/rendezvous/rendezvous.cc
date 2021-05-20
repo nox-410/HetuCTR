@@ -4,6 +4,7 @@ using namespace hetu;
 
 TCPRendezvous::TCPRendezvous(int rank, int nrank, std::string ip, int port)
 {
+  CHECK(rank < nrank && nrank > 0 && rank >= 0);
   rank_ = rank;
   nrank_ = nrank;
   addr_ = "tcp://"+ ip + ":" + std::to_string(port);

@@ -280,7 +280,7 @@ void HashTable<KeyType, ValType>::clear(cudaStream_t stream) {
   set_value_head(0, stream);
 }
 
-template class HashTable<unsigned int, size_t>;
-template class HashTable<long long, size_t>;
-
 }  // namespace HugeCTR
+
+#include "core/types.h"
+template class HugeCTR::HashTable<hetu::index_t, hetu::index_t>;
