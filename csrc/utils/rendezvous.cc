@@ -77,5 +77,4 @@ TCPRendezvous::~TCPRendezvous() {
     zmq_ctx_destroy(context_);
     context_ = nullptr;
   }
-  std::cout << "Closed" << std::endl;
 }

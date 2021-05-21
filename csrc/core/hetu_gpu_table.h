@@ -42,6 +42,7 @@ private:
   version_t * d_version_;
   worker_t * d_root_;
 
+  int verbose_;
   /**
    * @brief Initialize cuda and nccl communicator
    *
@@ -50,6 +51,16 @@ private:
    */
   void initializeNCCL(const std::string &ip, const int port);
   void initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr);
+
+  template <class T> int __printarg(T t) { std::cout << t; return 0; }
+  template<class ...Args>
+  inline void INFO(Args ...args) {
+    if (verbose_ >= 1) {
+      std::cout << "HetuGPUTable rank " << (int)rank_ << ": ";
+      std::initializer_list<int>({__printarg(args)...});
+      std::cout << std::endl;
+    }
+  }
 
 public:
   HetuGPUTable(
@@ -64,10 +75,13 @@ public:
     const version_t push_bound,
     SArray<worker_t> root_id_arr,
     SArray<index_t> storage_id_arr,
-    const Initializer &init
+    const Initializer &init,
+    const int verbose
   );
   HetuGPUTable(const HetuGPUTable &) = delete;
   HetuGPUTable& operator=(const HetuGPUTable&) = delete;
+  std::string debugString();
+  std::string debugStringFull();
   ~HetuGPUTable();
 };
 

@@ -13,12 +13,14 @@ void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
   checkCudaErrors(cudaSetDevice(rank_));
   checkCudaErrors(cudaStreamCreate(&stream_main_));
   checkCudaErrors(cudaStreamCreate(&stream_sub_));
+  INFO("Start TCP rendezvous at ", ip, ":", port);
   TCPRendezvous tcp(rank_, nrank_, ip, port);
   ncclUniqueId uid;
   if (rank_ == 0) {
     checkCudaErrors(ncclGetUniqueId(&uid));
   }
   tcp.broadcast(&uid, sizeof(uid));
+  INFO("NCCL Connection built successfully");
   checkCudaErrors(ncclCommInitRank(&communicator_, nrank_, uid, rank_));
 }
 
@@ -86,7 +88,8 @@ HetuGPUTable::HetuGPUTable(
   const version_t push_bound,
   SArray<worker_t> root_id_arr,
   SArray<index_t> storage_id_arr,
-  const Initializer &init
+  const Initializer &init,
+  const int verbose
 ) :
   rank_(rank),
   nrank_(nrank),
@@ -96,13 +99,15 @@ HetuGPUTable::HetuGPUTable(
   kStorageMax(storage_id_arr.size()),
   pull_bound_(pull_bound),
   push_bound_(push_bound),
-  hash_table_(kStorageMax, 0)
+  hash_table_(kStorageMax, 0),
+  verbose_(verbose)
 {
   initializeNCCL(ip, port);
   initializeTable(root_id_arr, storage_id_arr);
   unsigned int seed = 0;
   seed = std::chrono::system_clock::now().time_since_epoch().count();
   initialize(d_embedding_, kEmbeddingIDMax * kEmbeddingWidth, init, false, seed);
+  INFO("Table Init Successfully");
 }
 
 HetuGPUTable::~HetuGPUTable() {

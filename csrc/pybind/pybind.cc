@@ -17,7 +17,8 @@ static std::unique_ptr<HetuGPUTable> makeHetuGPUTable(
   const version_t push_bound,
   py::array_t<worker_t> root_id_arr,
   py::array_t<index_t> storage_id_arr,
-  const Initializer &init)
+  const Initializer &init,
+  const int verbose)
 {
   SArray<worker_t> root_id_arr_shared(root_id_arr.mutable_data(), root_id_arr.size());
   SArray<index_t> storage_id_arr_shared(storage_id_arr.mutable_data(), storage_id_arr.size());
@@ -27,7 +28,7 @@ static std::unique_ptr<HetuGPUTable> makeHetuGPUTable(
     embedding_length, embedding_width,
     pull_bound, push_bound,
     root_id_arr_shared, storage_id_arr_shared,
-    init);
+    init, verbose);
 }
 
 static std::unique_ptr<Initializer> makeInitializer(InitType type, float param_a, float param_b) {
@@ -53,6 +54,8 @@ PYBIND11_MODULE(hetu_gpu_table, m) {
       py::arg("length"), py::arg("width"),
       py::arg("pull_bound"), py::arg("push_bound"),
       py::arg("root_arr"), py::arg("storage_arr"),
-      py::arg("init"));
+      py::arg("init"), py::arg("verbose"))
+    .def("__repr__", &HetuGPUTable::debugString)
+    .def("debug",  &HetuGPUTable::debugStringFull);
 
 } // PYBIND11_MODULE
