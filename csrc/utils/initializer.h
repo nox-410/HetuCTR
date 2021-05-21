@@ -14,7 +14,8 @@ enum class InitType {
 };
 
 /**
- * @brief For normal initializer param would be mean, stddev
+ * @brief Initializer for variables
+ * @details For normal initializer param would be mean, stddev
  *        For Uniform initializer param would be a, b
  */
 struct Initializer {

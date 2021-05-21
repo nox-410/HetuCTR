@@ -3,6 +3,7 @@
 #include "types.h"
 #include "common/sarray.h"
 #include "common/logging.h"
+#include "utils/initializer.h"
 
 #include <cuda_runtime.h>
 #include <nccl.h>
@@ -44,17 +45,18 @@ private:
   void initializeNCCL(const std::string &ip, const int port);
 public:
   HetuGPUTable(
-    worker_t rank,
-    worker_t nrank,
-    worker_t device_id,
-    std::string ip,
-    int port,
-    size_t embedding_length,
-    size_t embedding_width,
-    version_t pull_bound,
-    version_t push_bound,
+    const worker_t rank,
+    const worker_t nrank,
+    const worker_t device_id,
+    const std::string &ip,
+    const int port,
+    const size_t embedding_length,
+    const size_t embedding_width,
+    const version_t pull_bound,
+    const version_t push_bound,
     SArray<worker_t> root_id_arr,
-    SArray<index_t> storage_id_arr
+    SArray<index_t> storage_id_arr,
+    const Initializer &init
   );
   HetuGPUTable(const HetuGPUTable &) = delete;
   HetuGPUTable& operator=(const HetuGPUTable&) = delete;
