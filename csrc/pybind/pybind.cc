@@ -55,6 +55,8 @@ PYBIND11_MODULE(hetu_gpu_table, m) {
       py::arg("pull_bound"), py::arg("push_bound"),
       py::arg("root_arr"), py::arg("storage_arr"),
       py::arg("init"), py::arg("verbose"))
+    .def("preprocess", &HetuGPUTable::preprocessIndex)
+    .def("push_pull", &HetuGPUTable::pushPull)
     .def("__repr__", &HetuGPUTable::debugString)
     .def("debug",  &HetuGPUTable::debugStringFull);
 

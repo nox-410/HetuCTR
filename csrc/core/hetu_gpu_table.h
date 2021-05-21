@@ -80,6 +80,21 @@ public:
   );
   HetuGPUTable(const HetuGPUTable &) = delete;
   HetuGPUTable& operator=(const HetuGPUTable&) = delete;
+  /**
+   * @brief preprocess next batch index
+   *
+   * @param data an array holding index
+   * @param len the length of index array
+   */
+  void preprocessIndex(index_t *data, size_t len);
+
+  /**
+   * @brief Update embedding Table with the gradients and then fetch embedding value to dst
+   *
+   * @param grad points to gradients array
+   * @param dst where embedding are written to
+   */
+  void pushPull(embed_t *grad, embed_t *dst);
   std::string debugString();
   std::string debugStringFull();
   ~HetuGPUTable();
