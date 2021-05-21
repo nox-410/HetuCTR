@@ -36,6 +36,12 @@ private:
 
   HashTable<index_t, index_t> hash_table_;
 
+  embed_t * d_embedding_;
+  embed_t * d_gradient_;
+  version_t * d_updates_;
+  version_t * d_version_;
+  worker_t * d_root_;
+
   /**
    * @brief Initialize cuda and nccl communicator
    *
@@ -43,6 +49,8 @@ private:
    * @param port IPv4 port
    */
   void initializeNCCL(const std::string &ip, const int port);
+  void initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr);
+
 public:
   HetuGPUTable(
     const worker_t rank,
