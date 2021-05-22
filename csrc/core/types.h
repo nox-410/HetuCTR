@@ -27,4 +27,9 @@ const version_t kInvalidVersion = std::numeric_limits<version_t>::min();
 /// types of worker id
 typedef unsigned char worker_t;
 
+/// Cuda block dim
+const size_t DIM_BLOCK = 256;
+
+#define DIM_GRID(x) (x + DIM_BLOCK) % DIM_BLOCK
+
 } // namespace hetu

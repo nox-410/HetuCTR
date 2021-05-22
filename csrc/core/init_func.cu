@@ -7,6 +7,8 @@
 #include <thrust/sequence.h>
 #include <thrust/device_vector.h>
 
+#include <cub/cub.cuh>
+
 using namespace hetu;
 
 void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
@@ -109,8 +111,28 @@ HetuGPUTable::HetuGPUTable(
   initialize(d_embedding_, kEmbeddingIDMax * kEmbeddingWidth, init, false, seed);
   INFO("Table Init Successfully");
   // Initialize preprocess data , do not use zero
-  createPreprocessData(cur_batch_, 1, nrank_);
-  createPreprocessData(prev_batch_, 1, nrank_);
+  createPreprocessData(cur_batch_, batch_size_reserved_, nrank_);
+  createPreprocessData(prev_batch_, batch_size_reserved_, nrank_);
+  allocateAuxillaryMemory(batch_size_reserved_);
+}
+
+void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
+  checkCudaErrors(cudaFree(d_temp_));
+  size_t temp_bytes_max = 1, temp_bytes;
+
+  // Check how much temp memory cub want to use
+  index_t *ptr;
+  checkCudaErrors(cub::DeviceRadixSort::SortPairs(
+    nullptr, temp_bytes, ptr, ptr, ptr, ptr, batch_size));
+  temp_bytes_max = std::max(temp_bytes, temp_bytes_max);
+  checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
+    nullptr, temp_bytes, ptr, ptr, ptr, ptr, batch_size));
+  temp_bytes_max = std::max(temp_bytes, temp_bytes_max);
+
+  INFO("Allocate Temp Memory --- ", temp_bytes_max, " bytes");
+  checkCudaErrors(cudaMalloc(&d_temp_, temp_bytes_max));
+  batch_size_reserved_ = batch_size;
+  temp_bytes_ = temp_bytes_max;
 }
 
 HetuGPUTable::~HetuGPUTable() {
@@ -122,6 +144,7 @@ HetuGPUTable::~HetuGPUTable() {
   checkCudaErrors(cudaFree(d_gradient_));
   checkCudaErrors(cudaFree(d_updates_));
   checkCudaErrors(cudaFree(d_root_));
+  checkCudaErrors(cudaFree(d_temp_));
   freePreprocessData(cur_batch_);
   freePreprocessData(prev_batch_);
 }

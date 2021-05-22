@@ -19,6 +19,8 @@ def worker(rank):
         length = length, width = width,
         root_arr = root_arr, storage_arr = storage_arr, verbose=1
     )
+    embed_id = np.array([1,2, 3, 1, 2], dtype=np.int64)
+    table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
     print(table.debug())
 
 

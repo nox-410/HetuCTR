@@ -30,6 +30,10 @@ private:
   const size_t kStorageMax;
   size_t kNonLocalStorageMax;
 
+  // maxinum size of a batch fed,
+  // when the table received a larger batch, it will have to reallocate memory
+  size_t batch_size_reserved_ = 1;
+
   const version_t pull_bound_, push_bound_;
 
   cudaStream_t stream_main_, stream_sub_;
@@ -43,6 +47,10 @@ private:
   version_t * d_version_;
   worker_t * d_root_;
 
+  // temp memory used in some cuda-based algorithm
+  void * d_temp_ = nullptr;
+  size_t temp_bytes_ = 0;
+
   PreprocessData cur_batch_, prev_batch_;
 
   int verbose_;
@@ -54,6 +62,7 @@ private:
    */
   void initializeNCCL(const std::string &ip, const int port);
   void initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr);
+  void allocateAuxillaryMemory(size_t batch_size);
 
   template <class T> int __printarg(T t) { std::cout << t; return 0; }
   template<class ...Args>
@@ -86,10 +95,10 @@ public:
   /**
    * @brief preprocess next batch index
    *
-   * @param data an array holding index
+   * @param data_ptr an address holding index
    * @param len the length of index array
    */
-  void preprocessIndex(index_t *data, size_t batch_size);
+  void preprocessIndex(unsigned long data_ptr, size_t batch_size);
 
   /**
    * @brief Update embedding Table with the gradients and then fetch embedding value to dst
