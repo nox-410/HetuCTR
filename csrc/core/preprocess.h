@@ -1,7 +1,6 @@
 #pragma once
 
 #include "types.h"
-#include <vector>
 
 namespace hetu {
 
@@ -14,8 +13,7 @@ struct PreprocessData {
   index_t *d_idx_map = nullptr;
   worker_t *d_root = nullptr;
   index_t *d_offset = nullptr;
-  size_t *d_embed_root_shape = nullptr;
-  std::vector<size_t> embed_root_shape;
+  size_t *u_root_offset = nullptr;
 };
 
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank);

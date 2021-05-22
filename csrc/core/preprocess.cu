@@ -1,17 +1,15 @@
 #include "preprocess.h"
 #include "hetu_gpu_table.h"
 
+#include <cmath>
 #include <cuda_runtime.h>
 #include <cub/cub.cuh>
 #include "common/helper_cuda.h"
-
-#include <thrust/binary_search.h>
 
 namespace hetu {
 
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank) {
   assert(batch_size > 0);
-  pdata.embed_root_shape.resize(nrank, 0);
   pdata.batch_size = batch_size;
   pdata.allocate_size = batch_size;
   checkCudaErrors(cudaMalloc(
@@ -24,8 +22,8 @@ void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank
     &pdata.d_offset, sizeof(index_t) * batch_size));
   checkCudaErrors(cudaMalloc(
     &pdata.d_root, sizeof(worker_t) * batch_size));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_embed_root_shape, sizeof(size_t) * nrank));
+  checkCudaErrors(cudaMallocManaged(
+    &pdata.u_root_offset, sizeof(size_t) * (nrank + 1)));
 }
 
 void freePreprocessData(PreprocessData &pdata) {
@@ -34,7 +32,7 @@ void freePreprocessData(PreprocessData &pdata) {
   checkCudaErrors(cudaFree(pdata.d_idx_map));
   checkCudaErrors(cudaFree(pdata.d_offset));
   checkCudaErrors(cudaFree(pdata.d_root));
-  checkCudaErrors(cudaFree(pdata.d_embed_root_shape));
+  checkCudaErrors(cudaFree(pdata.u_root_offset));
 }
 
 __global__ void generateSortkeys(index_t *dst, const index_t *d_index,
@@ -104,36 +102,45 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // use unused memory here to store temp sort keys
   generateSortkeys<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(
     cur_batch_.d_idx_map, cur_batch_.d_idx, d_root_, batch_size, kEmbeddingIDMax);
-
+  // we don't need to sort all the bits when using radix sort.
+  // using end_bit smaller than 64 can yield corresponding performance improvement
+  int end_bit = std::ceil(std::log2(kEmbeddingIDMax * nrank_));
   checkCudaErrors(cub::DeviceRadixSort::SortPairs(
     d_temp_, temp_bytes_, cur_batch_.d_idx_map, cur_batch_.d_idx_map, cur_batch_.d_idx, cur_batch_.d_unique_idx,
-    batch_size, 0, sizeof(index_t) * 8, stream_main_));
+    batch_size, 0, end_bit, stream_main_));
 
   // perform unique operation, store total number of unique embedding items;
   // we don't really need the count of each run, so we put it in offset and will overwrite it later
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
-    d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_offset, cur_batch_.d_idx_map,
-    batch_size, stream_main_));
+    d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_offset,
+    &cur_batch_.u_root_offset[nrank_], batch_size, stream_main_));
 
   // Take the number of unique embedding index to host
-  checkCudaErrors(cudaMemcpyAsync(
-    &cur_batch_.unique_size, cur_batch_.d_idx_map, sizeof(index_t), cudaMemcpyDeviceToHost, stream_main_));
+  checkCudaErrors(cudaStreamSynchronize(stream_main_));
+  cur_batch_.unique_size = cur_batch_.u_root_offset[nrank_];
+
+  // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
   // We should only lookup index in range [0, unique_size)
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
-  // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
   hash_table_.get(cur_batch_.d_unique_idx, cur_batch_.d_offset, cur_batch_.unique_size, stream_main_);
+
+  // This computes how many embedding belongs to each worker
   computeIndexRootShape<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(
-    cur_batch_.d_root, cur_batch_.d_embed_root_shape , cur_batch_.d_unique_idx, d_root_, cur_batch_.unique_size, nrank_);
+    cur_batch_.d_root, cur_batch_.u_root_offset , cur_batch_.d_unique_idx, d_root_, cur_batch_.unique_size, nrank_);
+
+  // This computes where we can find the unique index from the original index
   parallelLowerBound<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(
     cur_batch_.d_idx_map, cur_batch_.d_unique_idx, cur_batch_.d_idx, cur_batch_.unique_size, batch_size);
 
-  checkCudaErrors(cudaMemcpyAsync(cur_batch_.embed_root_shape.data(), cur_batch_.d_embed_root_shape,
-    sizeof(size_t) * nrank_, cudaMemcpyDeviceToHost, stream_main_));
-
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
+  // std::vector<index_t> h(batch_size);
+  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_idx_map, batch_size * 8, cudaMemcpyDeviceToHost));
+  // if (rank_ == 0)
+  // for (int  i = 0 ; i < batch_size; i++) {
+  //   std::cout << h[i] << std::endl;
+  // }
   // for (worker_t i = 0; i < nrank_; i++) {
-  //   std::cout << cur_batch_.embed_root_shape[i] << " ";
+  //   std::cout << cur_batch_.u_root_offset[i] << " ";
   // }
   // std::cout << std::endl;
 }

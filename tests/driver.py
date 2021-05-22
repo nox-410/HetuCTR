@@ -22,6 +22,9 @@ def worker(rank):
         root_arr = root_arr, storage_arr = storage_arr, verbose=1
     )
     # embed_id = np.array(range(1024), dtype=np.int64)
+    embed_id = np.array([], dtype=np.int64)
+    table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
+
     embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
     print(table.debug())
