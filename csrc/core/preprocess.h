@@ -14,6 +14,7 @@ struct PreprocessData {
   index_t *d_idx_map = nullptr;
   worker_t *d_root = nullptr;
   index_t *d_offset = nullptr;
+  size_t *d_embed_root_shape = nullptr;
   std::vector<size_t> embed_root_shape;
 };
 
