@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "preprocess.h"
 #include "common/sarray.h"
 #include "common/logging.h"
 #include "utils/initializer.h"
@@ -41,6 +42,8 @@ private:
   version_t * d_updates_;
   version_t * d_version_;
   worker_t * d_root_;
+
+  PreprocessData cur_batch_, prev_batch_;
 
   int verbose_;
   /**
@@ -86,7 +89,7 @@ public:
    * @param data an array holding index
    * @param len the length of index array
    */
-  void preprocessIndex(index_t *data, size_t len);
+  void preprocessIndex(index_t *data, size_t batch_size);
 
   /**
    * @brief Update embedding Table with the gradients and then fetch embedding value to dst

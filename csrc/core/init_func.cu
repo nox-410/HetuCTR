@@ -108,6 +108,9 @@ HetuGPUTable::HetuGPUTable(
   seed = std::chrono::system_clock::now().time_since_epoch().count();
   initialize(d_embedding_, kEmbeddingIDMax * kEmbeddingWidth, init, false, seed);
   INFO("Table Init Successfully");
+  // Initialize preprocess data , do not use zero
+  createPreprocessData(cur_batch_, 1, nrank_);
+  createPreprocessData(prev_batch_, 1, nrank_);
 }
 
 HetuGPUTable::~HetuGPUTable() {
@@ -119,4 +122,6 @@ HetuGPUTable::~HetuGPUTable() {
   checkCudaErrors(cudaFree(d_gradient_));
   checkCudaErrors(cudaFree(d_updates_));
   checkCudaErrors(cudaFree(d_root_));
+  freePreprocessData(cur_batch_);
+  freePreprocessData(prev_batch_);
 }
