@@ -12,7 +12,7 @@
 using namespace hetu;
 
 void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
-  checkCudaErrors(cudaSetDevice(rank_));
+  checkCudaErrors(cudaSetDevice(device_id_));
   checkCudaErrors(cudaStreamCreate(&stream_main_));
   checkCudaErrors(cudaStreamCreate(&stream_sub_));
   INFO("Start TCP rendezvous at ", ip, ":", port);
@@ -104,13 +104,24 @@ HetuGPUTable::HetuGPUTable(
   hash_table_(kStorageMax, 0),
   verbose_(verbose)
 {
+  // Check device id
+  int num_gpus = 0;
+  checkCudaErrors(cudaGetDeviceCount(&num_gpus));
+  CHECK(device_id < num_gpus) << "InCorrect device number.";
+
+  // Setup NCCL
   initializeNCCL(ip, port);
+
+  // Setup Embedding Table
   initializeTable(root_id_arr, storage_id_arr);
+
+  // Initialize Embedding Table with initializer
   unsigned int seed = 0;
   seed = std::chrono::system_clock::now().time_since_epoch().count();
   initialize(d_embedding_, kEmbeddingIDMax * kEmbeddingWidth, init, false, seed);
   INFO("Table Init Successfully");
-  // Initialize preprocess data , do not use zero
+
+  // Initialize preprocess data and auxillary memory
   createPreprocessData(cur_batch_, batch_size_reserved_, nrank_);
   createPreprocessData(prev_batch_, batch_size_reserved_, nrank_);
   allocateAuxillaryMemory(batch_size_reserved_);
