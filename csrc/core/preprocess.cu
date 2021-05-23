@@ -38,35 +38,18 @@ void freePreprocessData(PreprocessData &pdata) {
   checkCudaErrors(cudaFree(pdata.u_shape_exchanged));
 }
 
-__global__ void generateSortkeys(index_t *dst, const index_t *d_index,
-  const worker_t *d_root, const size_t n, const size_t idx_max) {
+// This computes keys as <root_id, embedding_id>
+__global__ void generateSortkeys(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < n) {
-    worker_t r = d_root[d_index[id]];
-    assert(d_index[id] < idx_max);
-    dst[id] = d_index[id] + idx_max * r;
+  if (id < tbl->cur_batch_.batch_size) {
+    index_t embedding_idx = tbl->cur_batch_.d_idx[id];
+    assert(embedding_idx < tbl->kEmbeddingIDMax);
+    worker_t r = tbl->d_root_[embedding_idx];
+    tbl->cur_batch_.d_idx_map[id] = embedding_idx + tbl->kEmbeddingIDMax * r;
   }
 }
 
-__global__ void computeIndexRootShape(worker_t *d_root_dst, size_t* d_offset,
-  const index_t *d_uid, const worker_t *d_root, const size_t n, const worker_t nrank) {
-  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < n) {
-    int r = d_root[d_uid[id]], r_prev;
-    d_root_dst[id] = r;
-    if (id == 0) r_prev = -1;
-    else r_prev = d_root[d_uid[id - 1]];
-    for (int i = r_prev + 1; i <= r; i++) {
-      d_offset[i] = id;
-    }
-    if (id == n - 1) {
-      for (int i = r + 1; i < nrank; i++) {
-        d_offset[i] = n;
-      }
-    }
-  }
-}
-
+// A simple binary search implementation
 __device__ index_t lowerBound(const index_t *data, const size_t len, index_t target) {
   index_t start = 0, last = len;
 	while (start < last) {
@@ -77,12 +60,29 @@ __device__ index_t lowerBound(const index_t *data, const size_t len, index_t tar
 	return start;
 }
 
-__global__ void parallelLowerBound(index_t *dst, const index_t *d_uid, const index_t *target,
-  const size_t len, const size_t n) {
+// This will compute cur_batch_.d_idx_map
+// cur_batch_.d_root cur_batch_.u_shape
+__global__ void computeBatch(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t n = tbl->cur_batch_.unique_size;
   if (id < n) {
-    index_t val = target[id];
-    dst[id] = lowerBound(d_uid, len, val);
+    int r = tbl->d_root_[tbl->cur_batch_.d_unique_idx[id]], r_prev;
+    tbl->cur_batch_.d_root[id] = r;
+    if (id == 0) r_prev = -1;
+    else r_prev = tbl->d_root_[tbl->cur_batch_.d_unique_idx[id - 1]];
+    for (int i = r_prev + 1; i <= r; i++) {
+      tbl->cur_batch_.u_shape[i] = id;
+    }
+    if (id == n - 1) {
+      for (int i = r + 1; i <= tbl->nrank_; i++) {
+        tbl->cur_batch_.u_shape[i] = n;
+      }
+    }
+  }
+  // This computes where we can find the unique index from the original index
+  if (id < tbl->cur_batch_.batch_size) {
+    index_t val = tbl->cur_batch_.d_idx[id];
+    tbl->cur_batch_.d_idx_map[id] = lowerBound(tbl->cur_batch_.d_unique_idx, n, val);
   }
 }
 
@@ -103,8 +103,7 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
     cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyHostToDevice, stream_main_));
 
   // use unused memory here to store temp sort keys
-  generateSortkeys<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(
-    cur_batch_.d_idx_map, cur_batch_.d_idx, d_root_, batch_size, kEmbeddingIDMax);
+  generateSortkeys<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
   // we don't need to sort all the bits when using radix sort.
   // using end_bit smaller than 64 can yield corresponding performance improvement
   int end_bit = std::ceil(std::log2(kEmbeddingIDMax * nrank_));
@@ -116,24 +115,13 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // we don't really need the count of each run, so we put it in offset and will overwrite it later
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
     d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_offset,
-    &cur_batch_.u_shape[nrank_], batch_size, stream_main_));
+    &cur_batch_.unique_size, batch_size, stream_main_));
 
-  // Take the number of unique embedding index to host
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
-  cur_batch_.unique_size = cur_batch_.u_shape[nrank_];
+  // We should only lookup index in range [0, unique_size), but it is ok
+  hash_table_.get(cur_batch_.d_unique_idx, cur_batch_.d_offset, cur_batch_.batch_size, stream_main_);
 
-  // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
-
-  // We should only lookup index in range [0, unique_size)
-  hash_table_.get(cur_batch_.d_unique_idx, cur_batch_.d_offset, cur_batch_.unique_size, stream_main_);
-
-  // This computes how many embedding belongs to each worker
-  computeIndexRootShape<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(
-    cur_batch_.d_root, cur_batch_.u_shape , cur_batch_.d_unique_idx, d_root_, cur_batch_.unique_size, nrank_);
-
-  // This computes where we can find the unique index from the original index
-  parallelLowerBound<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(
-    cur_batch_.d_idx_map, cur_batch_.d_unique_idx, cur_batch_.d_idx, cur_batch_.unique_size, batch_size);
+  // This computes other preprocess data
+  computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
 
   // convert offset to shape
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
@@ -143,7 +131,9 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // exchange shape with other workers
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
 
-  cudaStreamSynchronize(stream_main_);
+  checkCudaErrors(cudaStreamSynchronize(stream_main_));
+
+  // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
   // std::vector<index_t> h(batch_size);
   // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));

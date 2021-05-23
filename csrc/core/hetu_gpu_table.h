@@ -10,6 +10,7 @@
 #include <nccl.h>
 
 #include "hash_table/nv_hashtable.hpp"
+#include "hash_table/cudf/managed.cuh"
 
 using HugeCTR::HashTable;
 
@@ -19,8 +20,8 @@ namespace hetu {
  * @brief Distributed GPU Table for embedding-based training
  *
  */
-class HetuGPUTable {
-private:
+class HetuGPUTable : public managed {
+public:
   const worker_t rank_;
   const worker_t nrank_;
   const worker_t device_id_;
@@ -91,7 +92,6 @@ private:
     }
   }
 
-public:
   HetuGPUTable(
     const worker_t rank,
     const worker_t nrank,
