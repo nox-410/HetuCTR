@@ -13,7 +13,8 @@ struct PreprocessData {
   index_t *d_idx_map = nullptr;
   worker_t *d_root = nullptr;
   index_t *d_offset = nullptr;
-  size_t *u_root_offset = nullptr;
+  size_t *u_shape = nullptr;
+  size_t *u_shape_exchanged = nullptr;
 };
 
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank);

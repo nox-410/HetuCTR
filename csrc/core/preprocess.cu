@@ -23,7 +23,9 @@ void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank
   checkCudaErrors(cudaMalloc(
     &pdata.d_root, sizeof(worker_t) * batch_size));
   checkCudaErrors(cudaMallocManaged(
-    &pdata.u_root_offset, sizeof(size_t) * (nrank + 1)));
+    &pdata.u_shape, sizeof(size_t) * (nrank + 1)));
+  checkCudaErrors(cudaMallocManaged(
+    &pdata.u_shape_exchanged, sizeof(size_t) * (nrank + 1)));
 }
 
 void freePreprocessData(PreprocessData &pdata) {
@@ -32,7 +34,8 @@ void freePreprocessData(PreprocessData &pdata) {
   checkCudaErrors(cudaFree(pdata.d_idx_map));
   checkCudaErrors(cudaFree(pdata.d_offset));
   checkCudaErrors(cudaFree(pdata.d_root));
-  checkCudaErrors(cudaFree(pdata.u_root_offset));
+  checkCudaErrors(cudaFree(pdata.u_shape));
+  checkCudaErrors(cudaFree(pdata.u_shape_exchanged));
 }
 
 __global__ void generateSortkeys(index_t *dst, const index_t *d_index,
@@ -113,11 +116,11 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // we don't really need the count of each run, so we put it in offset and will overwrite it later
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
     d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_offset,
-    &cur_batch_.u_root_offset[nrank_], batch_size, stream_main_));
+    &cur_batch_.u_shape[nrank_], batch_size, stream_main_));
 
   // Take the number of unique embedding index to host
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
-  cur_batch_.unique_size = cur_batch_.u_root_offset[nrank_];
+  cur_batch_.unique_size = cur_batch_.u_shape[nrank_];
 
   // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
@@ -126,13 +129,20 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
 
   // This computes how many embedding belongs to each worker
   computeIndexRootShape<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(
-    cur_batch_.d_root, cur_batch_.u_root_offset , cur_batch_.d_unique_idx, d_root_, cur_batch_.unique_size, nrank_);
+    cur_batch_.d_root, cur_batch_.u_shape , cur_batch_.d_unique_idx, d_root_, cur_batch_.unique_size, nrank_);
 
   // This computes where we can find the unique index from the original index
   parallelLowerBound<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(
     cur_batch_.d_idx_map, cur_batch_.d_unique_idx, cur_batch_.d_idx, cur_batch_.unique_size, batch_size);
 
+  // convert offset to shape
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
+  for (int i = 0 ;i < nrank_; i++)
+     cur_batch_.u_shape[i] = cur_batch_.u_shape[i + 1] - cur_batch_.u_shape[i];
+
+  // exchange shape with other workers
+  all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
+
   // std::vector<index_t> h(batch_size);
   // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));
   // if (rank_ == 0)
@@ -140,7 +150,7 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   //   std::cout << h[i] << std::endl;
   // }
   // for (worker_t i = 0; i < nrank_; i++) {
-  //   std::cout << cur_batch_.u_root_offset[i] << " ";
+  //   std::cout << cur_batch_.u_shape[i] << " ";
   // }
   // std::cout << std::endl;
 }

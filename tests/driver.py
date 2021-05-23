@@ -12,6 +12,7 @@ batch_size = 1024
 root_arr = np.random.randint(nrank, size=length)
 
 def worker(rank):
+    np.random.seed(0)
     init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 0.1)
     storage_arr = np.where(root_arr == rank)[0]
     storage_arr = np.where(root_arr <= rank)[0]
@@ -27,7 +28,8 @@ def worker(rank):
 
     embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
-    print(table.debug())
+
+    table.push_pull(0, 0)
 
 
 if __name__ == '__main__':

@@ -72,6 +72,9 @@ private:
   void allocateAuxillaryMemory(size_t batch_size);
   void freeAuxillaryMemory();
 
+  void generateQuery();
+  void all2allExchangeShape(const size_t *shape, size_t *shape_out);
+
   template <class T> int __printarg(T t) { std::cout << t; return 0; }
   template<class ...Args>
   inline void INFO(Args ...args) {
@@ -114,7 +117,7 @@ public:
    * @param grad points to gradients array
    * @param dst where embedding are written to
    */
-  void pushPull(embed_t *grad, embed_t *dst);
+  void pushPull(unsigned long grad, unsigned long dst);
   std::string debugString();
   std::string debugStringFull();
   ~HetuGPUTable();
