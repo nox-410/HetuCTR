@@ -143,12 +143,15 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // exchange shape with other workers
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
 
+  cudaStreamSynchronize(stream_main_);
+
   // std::vector<index_t> h(batch_size);
   // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));
   // if (rank_ == 0)
   // for (int  i = 0 ; i < batch_size; i++) {
   //   std::cout << h[i] << std::endl;
   // }
+  // std::cout << "rank " << rank_ << ":";
   // for (worker_t i = 0; i < nrank_; i++) {
   //   std::cout << cur_batch_.u_shape[i] << " ";
   // }

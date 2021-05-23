@@ -15,8 +15,8 @@ __global__ void LookUpVersion(version_t* dst, const version_t* src, const index_
 void HetuGPUTable::generateQuery() {
   // generate local version for each embedding lookup
   LookUpVersion<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(
-    d_query_version_, d_version_, cur_batch_.d_offset, cur_batch_.unique_size);
+    d_query_version_[0], d_version_, cur_batch_.d_offset, cur_batch_.unique_size);
   // Copy index to query buffer
   checkCudaErrors(cudaMemcpyAsync(
-    d_query_idx_, cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
+    d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
 }

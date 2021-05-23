@@ -51,12 +51,12 @@ private:
   void * d_temp_ = nullptr;
   size_t temp_bytes_ = 0;
 
-  // query buffer
-  version_t * d_query_version_ = nullptr;
-  version_t * d_query_updates_ = nullptr;
-  index_t * d_query_idx_ = nullptr;
-  index_t * d_query_gradient_idx_ = nullptr;
-  embed_t * d_query_val_ = nullptr;
+  // query buffer, dual buffer for send and receive
+  version_t * d_query_version_[2] = {};
+  version_t * d_query_updates_[2] = {};
+  index_t * d_query_idx_[2] = {};
+  index_t * d_query_gradient_idx_[2] = {};
+  embed_t * d_query_val_[2] = {};
 
   PreprocessData cur_batch_, prev_batch_;
 
@@ -74,6 +74,7 @@ private:
 
   void generateQuery();
   void all2allExchangeShape(const size_t *shape, size_t *shape_out);
+  void all2allExchangeQuery();
 
   template <class T> int __printarg(T t) { std::cout << t; return 0; }
   template<class ...Args>

@@ -147,25 +147,29 @@ void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
 
   // We need to allocate nrank * batch_size so that it will be enough for all-to-all query
   size_t batch_limit = batch_size * nrank_;
-  checkCudaErrors(cudaMalloc(
-    &d_query_idx_, batch_limit * sizeof(index_t)));
-  checkCudaErrors(cudaMalloc(
-    &d_query_gradient_idx_, batch_limit * sizeof(index_t)));
-  checkCudaErrors(cudaMalloc(
-    &d_query_version_, batch_limit * sizeof(version_t)));
-  checkCudaErrors(cudaMalloc(
-    &d_query_updates_, batch_limit * sizeof(version_t)));
-  checkCudaErrors(cudaMalloc(
-    &d_query_val_, batch_limit * sizeof(embed_t) * kEmbeddingWidth));
+  for (int i = 0; i < 2; i++) {
+    checkCudaErrors(cudaMalloc(
+      &d_query_idx_[i], batch_limit * sizeof(index_t)));
+    checkCudaErrors(cudaMalloc(
+      &d_query_gradient_idx_[i], batch_limit * sizeof(index_t)));
+    checkCudaErrors(cudaMalloc(
+      &d_query_version_[i], batch_limit * sizeof(version_t)));
+    checkCudaErrors(cudaMalloc(
+      &d_query_updates_[i], batch_limit * sizeof(version_t)));
+    checkCudaErrors(cudaMalloc(
+      &d_query_val_[i], batch_limit * sizeof(embed_t) * kEmbeddingWidth));
+  }
 }
 
 void HetuGPUTable::freeAuxillaryMemory() {
   checkCudaErrors(cudaFree(d_temp_));
-  checkCudaErrors(cudaFree(d_query_idx_));
-  checkCudaErrors(cudaFree(d_query_gradient_idx_));
-  checkCudaErrors(cudaFree(d_query_version_));
-  checkCudaErrors(cudaFree(d_query_updates_));
-  checkCudaErrors(cudaFree(d_query_val_));
+  for (int i = 0; i < 2; i++) {
+    checkCudaErrors(cudaFree(d_query_idx_[i]));
+    checkCudaErrors(cudaFree(d_query_gradient_idx_[i]));
+    checkCudaErrors(cudaFree(d_query_version_[i]));
+    checkCudaErrors(cudaFree(d_query_updates_[i]));
+    checkCudaErrors(cudaFree(d_query_val_[i]));
+  }
 }
 
 HetuGPUTable::~HetuGPUTable() {
