@@ -9,10 +9,8 @@
 #include <cuda_runtime.h>
 #include <nccl.h>
 
-#include "hash_table/nv_hashtable.hpp"
-#include "hash_table/cudf/managed.cuh"
-
-using HugeCTR::HashTable;
+#include "cudf/managed.cuh"
+#include "cudf/concurrent_unordered_map.cuh"
 
 namespace hetu {
 
@@ -40,8 +38,6 @@ public:
   cudaStream_t stream_main_, stream_sub_;
   ncclComm_t communicator_;
 
-  HashTable<index_t, index_t> hash_table_;
-
   embed_t * d_embedding_;
   embed_t * d_gradient_;
   version_t * d_updates_;
@@ -64,6 +60,7 @@ public:
   version_t * d_return_version_[2] = {};
 
   PreprocessData cur_batch_, prev_batch_;
+  concurrent_unordered_map<index_t, index_t, kInvalidIndex> table_;
 
   int verbose_;
   /**

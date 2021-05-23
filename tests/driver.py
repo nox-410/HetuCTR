@@ -15,7 +15,7 @@ def worker(rank):
     np.random.seed(0)
     init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 0.1)
     storage_arr = np.where(root_arr == rank)[0]
-    storage_arr = np.where(root_arr >= rank)[0]
+    storage_arr = np.where(root_arr <= rank)[0]
     table = hetu_gpu_table.HetuGPUTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 10, push_bound = 10, init=init,

@@ -3,15 +3,6 @@
 
 using namespace hetu;
 
-__global__ void LookUpVersion(version_t* dst, const version_t* src, const index_t* offset, const int len) {
-  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < len) {
-    index_t idx = offset[id];
-    if (idx >= 0) dst[id] = src[idx];
-    else dst[id] = kInvalidVersion;
-  }
-}
-
 __global__ void LookUpVersion(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.unique_size) {

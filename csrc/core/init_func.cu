@@ -35,6 +35,30 @@ struct _PartitionPrediate {
   __device__ bool operator()(index_t idx) const { return d_root[idx]!=rank; }
 };
 
+template <typename value_type>
+struct ReplaceOp {
+  // constexpr static value_type IDENTITY{0};
+
+  __host__ __device__ value_type operator()(value_type new_value, value_type old_value) {
+    return new_value;
+  }
+};
+
+template <typename Table>
+__global__ void insert_kernel(Table* table, const typename Table::key_type* const keys,
+                              const typename Table::mapped_type* const vals, size_t len) {
+  ReplaceOp<typename Table::mapped_type> op;
+  thrust::pair<typename Table::key_type, typename Table::mapped_type> kv;
+
+  const size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < len) {
+    kv.first = keys[i];
+    kv.second = vals[i];
+    auto it = table->insert(kv, op);
+    assert(it != table->end() && "error: insert fails: table is full");
+  }
+}
+
 void HetuGPUTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr) {
   // copy root id array, this indicates which worker holds an embedding.
   checkCudaErrors(cudaMalloc(
@@ -51,7 +75,8 @@ void HetuGPUTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t>
     key.data().get(), storage_id_arr.data(), sizeof(index_t) * kStorageMax, cudaMemcpyHostToDevice));
   // reorder key with Predicate
   auto partition_point = thrust::stable_partition(key.begin(), key.end(), _PartitionPrediate(rank_, d_root_));
-  hash_table_.insert(key.data().get(), value.data().get(), kStorageMax, stream_main_);
+
+  insert_kernel<<<DIM_GRID(kStorageMax), DIM_BLOCK>>>(&table_, key.data().get(), value.data().get(), kStorageMax);
 
   // We now know how many non-local embeddings we have, allocate gradients and updates memory for them
   // Do not allocate gradients and updates for local embeddings.
@@ -101,8 +126,8 @@ HetuGPUTable::HetuGPUTable(
   kStorageMax(storage_id_arr.size()),
   pull_bound_(pull_bound),
   push_bound_(push_bound),
-  hash_table_(kStorageMax, 0),
-  verbose_(verbose)
+  verbose_(verbose),
+  table_(kStorageMax * 2, kInvalidIndex)
 {
   // Check device id
   int num_gpus = 0;

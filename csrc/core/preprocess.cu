@@ -66,8 +66,15 @@ __global__ void computeBatch(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t n = tbl->cur_batch_.unique_size;
   if (id < n) {
-    int r = tbl->d_root_[tbl->cur_batch_.d_unique_idx[id]], r_prev;
+    index_t uid = tbl->cur_batch_.d_unique_idx[id];
+    int r = tbl->d_root_[uid], r_prev;
     tbl->cur_batch_.d_root[id] = r;
+    auto iter = tbl->table_.find(uid);
+    if (iter == tbl->table_.end()) {
+      tbl->cur_batch_.d_offset[id] = kInvalidIndex;
+    } else {
+      tbl->cur_batch_.d_offset[id] = iter->second;
+    }
     if (id == 0) r_prev = -1;
     else r_prev = tbl->d_root_[tbl->cur_batch_.d_unique_idx[id - 1]];
     for (int i = r_prev + 1; i <= r; i++) {
@@ -117,9 +124,6 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
     d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_offset,
     &cur_batch_.unique_size, batch_size, stream_main_));
 
-  // We should only lookup index in range [0, unique_size), but it is ok
-  hash_table_.get(cur_batch_.d_unique_idx, cur_batch_.d_offset, cur_batch_.batch_size, stream_main_);
-
   // This computes other preprocess data
   computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
 
@@ -135,8 +139,8 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
 
   // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
-  // std::vector<index_t> h(batch_size);
-  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));
+  std::vector<index_t> h(batch_size);
+  checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));
   // if (rank_ == 0)
   // for (int  i = 0 ; i < batch_size; i++) {
   //   std::cout << h[i] << std::endl;
