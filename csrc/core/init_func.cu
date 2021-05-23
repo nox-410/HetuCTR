@@ -50,7 +50,7 @@ void HetuGPUTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t>
   checkCudaErrors(cudaMemcpy(
     key.data().get(), storage_id_arr.data(), sizeof(index_t) * kStorageMax, cudaMemcpyHostToDevice));
   // reorder key with Predicate
-  auto partition_point = thrust::partition(key.begin(), key.end(), _PartitionPrediate(rank_, d_root_));
+  auto partition_point = thrust::stable_partition(key.begin(), key.end(), _PartitionPrediate(rank_, d_root_));
   hash_table_.insert(key.data().get(), value.data().get(), kStorageMax, stream_main_);
 
   // We now know how many non-local embeddings we have, allocate gradients and updates memory for them
@@ -128,7 +128,7 @@ HetuGPUTable::HetuGPUTable(
 }
 
 void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
-  checkCudaErrors(cudaFree(d_temp_));
+  freeAuxillaryMemory();
   size_t temp_bytes_max = 1, temp_bytes;
 
   // Check how much temp memory cub want to use
@@ -144,6 +144,28 @@ void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
   checkCudaErrors(cudaMalloc(&d_temp_, temp_bytes_max));
   batch_size_reserved_ = batch_size;
   temp_bytes_ = temp_bytes_max;
+
+  // We need to allocate nrank * batch_size so that it will be enough for all-to-all query
+  size_t batch_limit = batch_size * nrank_;
+  checkCudaErrors(cudaMalloc(
+    &d_query_idx_, batch_limit * sizeof(index_t)));
+  checkCudaErrors(cudaMalloc(
+    &d_query_gradient_idx_, batch_limit * sizeof(index_t)));
+  checkCudaErrors(cudaMalloc(
+    &d_query_version_, batch_limit * sizeof(version_t)));
+  checkCudaErrors(cudaMalloc(
+    &d_query_updates_, batch_limit * sizeof(version_t)));
+  checkCudaErrors(cudaMalloc(
+    &d_query_val_, batch_limit * sizeof(embed_t) * kEmbeddingWidth));
+}
+
+void HetuGPUTable::freeAuxillaryMemory() {
+  checkCudaErrors(cudaFree(d_temp_));
+  checkCudaErrors(cudaFree(d_query_idx_));
+  checkCudaErrors(cudaFree(d_query_gradient_idx_));
+  checkCudaErrors(cudaFree(d_query_version_));
+  checkCudaErrors(cudaFree(d_query_updates_));
+  checkCudaErrors(cudaFree(d_query_val_));
 }
 
 HetuGPUTable::~HetuGPUTable() {
@@ -155,7 +177,7 @@ HetuGPUTable::~HetuGPUTable() {
   checkCudaErrors(cudaFree(d_gradient_));
   checkCudaErrors(cudaFree(d_updates_));
   checkCudaErrors(cudaFree(d_root_));
-  checkCudaErrors(cudaFree(d_temp_));
   freePreprocessData(cur_batch_);
   freePreprocessData(prev_batch_);
+  freeAuxillaryMemory();
 }

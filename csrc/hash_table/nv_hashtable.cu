@@ -52,9 +52,10 @@ __global__ void search_kernel(Table* table, const typename Table::key_type* cons
   const size_t i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < len) {
     auto it = table->find(keys[i]);
+    if (it == table->end()) vals[i] = -1;
+    else vals[i] = it->second;
     // allow not finding key
     // assert(it != table->end() && "error: can't find key");
-    vals[i] = it->second;
   }
 }
 

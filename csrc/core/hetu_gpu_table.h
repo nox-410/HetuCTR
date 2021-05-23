@@ -51,6 +51,13 @@ private:
   void * d_temp_ = nullptr;
   size_t temp_bytes_ = 0;
 
+  // query buffer
+  version_t * d_query_version_ = nullptr;
+  version_t * d_query_updates_ = nullptr;
+  index_t * d_query_idx_ = nullptr;
+  index_t * d_query_gradient_idx_ = nullptr;
+  embed_t * d_query_val_ = nullptr;
+
   PreprocessData cur_batch_, prev_batch_;
 
   int verbose_;
@@ -63,6 +70,7 @@ private:
   void initializeNCCL(const std::string &ip, const int port);
   void initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr);
   void allocateAuxillaryMemory(size_t batch_size);
+  void freeAuxillaryMemory();
 
   template <class T> int __printarg(T t) { std::cout << t; return 0; }
   template<class ...Args>

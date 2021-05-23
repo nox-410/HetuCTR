@@ -134,7 +134,7 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
   // std::vector<index_t> h(batch_size);
-  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_idx_map, batch_size * 8, cudaMemcpyDeviceToHost));
+  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));
   // if (rank_ == 0)
   // for (int  i = 0 ; i < batch_size; i++) {
   //   std::cout << h[i] << std::endl;

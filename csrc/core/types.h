@@ -19,7 +19,7 @@ typedef long long version_t;
 typedef long long index_t;
 
 /// Default invalid index usd in hash map
-const index_t kInvalidIndex = std::numeric_limits<index_t>::max();
+const index_t kInvalidIndex = -1;
 
 /// This version is smaller than any other version, so it will be regarded as outdated
 const version_t kInvalidVersion = std::numeric_limits<version_t>::min();
