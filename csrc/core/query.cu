@@ -32,7 +32,10 @@ void HetuGPUTable::generateQuery() {
 __global__ void computeReturnOutdated(HetuGPUTable *g, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
-    g->d_embedding_[id] = 0;
+    version_t local_version = g->d_query_version_[1][id];
+    // auto *table = g->hash_table_.container_;
+    // auto it = table->find(g->d_query_idx_[1][id]);
+    version_t global_version = g->d_version_[id];
   }
 }
 
@@ -40,5 +43,5 @@ void HetuGPUTable::handleQuery() {
   size_t num_rcvd = 0;
   for (int i = 0; i < nrank_; i++) num_rcvd += cur_batch_.u_shape_exchanged[i];
   INFO(num_rcvd, " received embedding index to handle.");
-  computeReturnOutdated<<<1, 256, 0, stream_main_>>>(this, 256);
+  computeReturnOutdated<<<DIM_GRID(num_rcvd), DIM_BLOCK, 0, stream_main_>>>(this, num_rcvd);
 }
