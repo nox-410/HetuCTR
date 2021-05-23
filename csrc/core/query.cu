@@ -20,3 +20,18 @@ void HetuGPUTable::generateQuery() {
   checkCudaErrors(cudaMemcpyAsync(
     d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
 }
+
+// __global__ void computeReturnOutdated(index_t *dst, const version_t *v_query,
+//   const version_t *v_root, const version_t pull_bound, size_t len) {
+//   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+//   if (id < len) {
+//     dst[id] = pull_bound + v_query[id] < v_root[id] ? 1 : 0;
+//   }
+// }
+
+void HetuGPUTable::handleQuery() {
+  size_t num_rcvd = 0;
+  for (int i = 0; i < nrank_; i++) num_rcvd += cur_batch_.u_shape_exchanged[i];
+  INFO(num_rcvd, " received embedding index to handle.");
+
+}

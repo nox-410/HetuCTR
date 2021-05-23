@@ -58,6 +58,10 @@ private:
   index_t * d_query_gradient_idx_[2] = {};
   embed_t * d_query_val_[2] = {};
 
+  index_t * d_return_outdated_[2] = {};
+  embed_t * d_return_val_[2] = {};
+  version_t * d_return_version_[2] = {};
+
   PreprocessData cur_batch_, prev_batch_;
 
   int verbose_;
@@ -73,6 +77,7 @@ private:
   void freeAuxillaryMemory();
 
   void generateQuery();
+  void handleQuery();
   void all2allExchangeShape(const size_t *shape, size_t *shape_out);
   void all2allExchangeQuery();
 
