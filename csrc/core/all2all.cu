@@ -23,12 +23,17 @@ void HetuGPUTable::all2allExchangeQuery() {
       d_query_idx_[0] + snd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_query_idx_[1] + rcvd_offset, cur_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
-
+    snd_offset += cur_batch_.u_shape[i];
+    rcvd_offset += cur_batch_.u_shape_exchanged[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+  checkCudaErrors(ncclGroupStart());
+  snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
     checkCudaErrors(ncclSend(
       d_query_version_[0] + snd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_query_version_[1] + rcvd_offset, cur_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
-
     snd_offset += cur_batch_.u_shape[i];
     rcvd_offset += cur_batch_.u_shape_exchanged[i];
   }

@@ -76,7 +76,9 @@ void HetuGPUTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t>
   // reorder key with Predicate
   auto partition_point = thrust::stable_partition(key.begin(), key.end(), _PartitionPrediate(rank_, d_root_));
 
-  insert_kernel<<<DIM_GRID(kStorageMax), DIM_BLOCK>>>(&table_, key.data().get(), value.data().get(), kStorageMax);
+  table_ = new concurrent_unordered_map<index_t, index_t, kInvalidIndex>(2 * kStorageMax, kInvalidIndex);
+  insert_kernel<<<DIM_GRID(kStorageMax), DIM_BLOCK, 0, stream_main_>>>(
+    table_, key.data().get(), value.data().get(), kStorageMax);
 
   // We now know how many non-local embeddings we have, allocate gradients and updates memory for them
   // Do not allocate gradients and updates for local embeddings.
@@ -126,8 +128,7 @@ HetuGPUTable::HetuGPUTable(
   kStorageMax(storage_id_arr.size()),
   pull_bound_(pull_bound),
   push_bound_(push_bound),
-  verbose_(verbose),
-  table_(kStorageMax * 2, kInvalidIndex)
+  verbose_(verbose)
 {
   // Check device id
   int num_gpus = 0;
@@ -220,4 +221,5 @@ HetuGPUTable::~HetuGPUTable() {
   freePreprocessData(cur_batch_);
   freePreprocessData(prev_batch_);
   freeAuxillaryMemory();
+  delete table_;
 }

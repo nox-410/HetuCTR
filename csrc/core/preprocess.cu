@@ -69,8 +69,8 @@ __global__ void computeBatch(HetuGPUTable *tbl) {
     index_t uid = tbl->cur_batch_.d_unique_idx[id];
     int r = tbl->d_root_[uid], r_prev;
     tbl->cur_batch_.d_root[id] = r;
-    auto iter = tbl->table_.find(uid);
-    if (iter == tbl->table_.end()) {
+    auto iter = tbl->table_->find(uid);
+    if (iter == tbl->table_->end()) {
       tbl->cur_batch_.d_offset[id] = kInvalidIndex;
     } else {
       tbl->cur_batch_.d_offset[id] = iter->second;

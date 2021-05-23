@@ -1,5 +1,6 @@
 #include "hetu_gpu_table.h"
 #include "common/helper_cuda.h"
+#include <cub/cub.cuh>
 
 using namespace hetu;
 
@@ -20,13 +21,20 @@ void HetuGPUTable::generateQuery() {
     d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
 }
 
-__global__ void computeReturnOutdated(HetuGPUTable *g, size_t len) {
+__global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
-    version_t local_version = g->d_query_version_[1][id];
-    // auto *table = g->hash_table_.container_;
-    // auto it = table->find(g->d_query_idx_[1][id]);
-    version_t global_version = g->d_version_[id];
+    version_t local_version = tbl->d_query_version_[1][id];
+    index_t embedding_idx = tbl->d_query_idx_[1][id];
+    auto iter = tbl->table_->find(embedding_idx);
+
+    assert(tbl->d_root_[embedding_idx] == tbl->rank_);
+    assert(iter != tbl->table_->end());
+
+    version_t global_version = tbl->d_version_[iter->second];
+    if (local_version == kInvalidVersion || local_version + tbl->pull_bound_ <= global_version)
+      tbl->d_return_outdated_[0][id] = 1;
+    else tbl->d_return_outdated_[0][id] = 0;
   }
 }
 
@@ -35,4 +43,23 @@ void HetuGPUTable::handleQuery() {
   for (int i = 0; i < nrank_; i++) num_rcvd += cur_batch_.u_shape_exchanged[i];
   INFO(num_rcvd, " received embedding index to handle.");
   computeReturnOutdated<<<DIM_GRID(num_rcvd), DIM_BLOCK, 0, stream_main_>>>(this, num_rcvd);
+  checkCudaErrors(cub::DeviceScan::ExclusiveSum(
+    d_temp_, temp_bytes_, cur_batch_.u_shape_exchanged, cur_batch_.u_shape, nrank_ + 1, stream_main_));
+
+  checkCudaErrors(cub::DeviceSegmentedReduce::Sum(
+    d_temp_, temp_bytes_, d_return_outdated_[0], cur_batch_.u_shape, nrank_, cur_batch_.u_shape, cur_batch_.u_shape + 1, stream_main_));
+
+  all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
+
+  checkCudaErrors(cudaStreamSynchronize(stream_main_));
+  if (rank_ == 0) {
+    for (int i = 0; i <= nrank_; i++) {
+      std::cout << cur_batch_.u_shape[i] << " ";
+    }
+    std::cout << std::endl;
+    for (int i = 0; i <= nrank_; i++) {
+      std::cout << cur_batch_.u_shape_exchanged[i] << " ";
+    }
+    std::cout << std::endl;
+  }
 }

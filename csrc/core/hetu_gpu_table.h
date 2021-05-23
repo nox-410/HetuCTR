@@ -60,7 +60,7 @@ public:
   version_t * d_return_version_[2] = {};
 
   PreprocessData cur_batch_, prev_batch_;
-  concurrent_unordered_map<index_t, index_t, kInvalidIndex> table_;
+  concurrent_unordered_map<index_t, index_t, kInvalidIndex> *table_;
 
   int verbose_;
   /**
