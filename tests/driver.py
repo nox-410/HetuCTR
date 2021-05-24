@@ -28,12 +28,12 @@ def worker(rank):
     embed_id = np.array(range(10), dtype=np.int64)
     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
     table.push_pull(0, 0)
-    # start = time.time()
-    # for i in range(1000):
-    #     embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
-    #     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
-    #     table.push_pull(0, 0)
-    # print(time.time()-start)
+    start = time.time()
+    for i in range(1000):
+        embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
+        table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
+        table.push_pull(0, 0)
+    print(time.time()-start)
 
 
 if __name__ == '__main__':
