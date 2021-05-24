@@ -39,3 +39,46 @@ void HetuGPUTable::all2allExchangeQuery() {
   }
   checkCudaErrors(ncclGroupEnd());
 }
+
+void HetuGPUTable::all2allReturnOutdated() {
+  checkCudaErrors(ncclGroupStart());
+  size_t snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
+    checkCudaErrors(ncclSend(
+      d_return_outdated_[0] + snd_offset, cur_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_return_outdated_[1] + rcvd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
+    snd_offset += cur_batch_.u_shape_exchanged[i];
+    rcvd_offset += cur_batch_.u_shape[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+}
+
+void HetuGPUTable::all2allReturnValue() {
+  checkCudaErrors(ncclGroupStart());
+  size_t snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
+    checkCudaErrors(ncclSend(
+      d_return_version_[0] + snd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_return_version_[1] + rcvd_offset, cur_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+    snd_offset += cur_batch_.u_shape[i];
+    rcvd_offset += cur_batch_.u_shape_exchanged[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+
+  checkCudaErrors(ncclGroupStart());
+  snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
+    checkCudaErrors(ncclSend(
+      d_return_val_[0] + snd_offset * kEmbeddingWidth, cur_batch_.u_shape[i] * kEmbeddingWidth,
+      ncclFloat32, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_return_val_[1] + rcvd_offset * kEmbeddingWidth, cur_batch_.u_shape_exchanged[i] * kEmbeddingWidth,
+      ncclFloat32, i, communicator_, stream_main_));
+    snd_offset += cur_batch_.u_shape[i];
+    rcvd_offset += cur_batch_.u_shape_exchanged[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+  INFO("Total embedding fetching serve/query = ", rcvd_offset, "/", snd_offset);
+}

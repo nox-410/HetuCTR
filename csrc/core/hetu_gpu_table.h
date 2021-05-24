@@ -76,8 +76,11 @@ public:
 
   void generateQuery();
   void handleQuery();
+  void writeBack(embed_t *dst);
   void all2allExchangeShape(const size_t *shape, size_t *shape_out);
   void all2allExchangeQuery();
+  void all2allReturnOutdated();
+  void all2allReturnValue();
 
   template <class T> int __printarg(T t) { std::cout << t; return 0; }
   template<class ...Args>

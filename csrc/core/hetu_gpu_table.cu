@@ -10,6 +10,7 @@ void HetuGPUTable::pushPull(unsigned long grad, unsigned long dst) {
   all2allExchangeQuery();
 
   handleQuery();
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
+
+  writeBack((embed_t*)dst);
   return;
 }

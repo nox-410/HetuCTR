@@ -14,7 +14,10 @@ np.random.seed(0)
 root_arr = np.random.randint(nrank, size=length)
 
 def worker(rank):
-    init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 0.1)
+    import torch
+    torch.cuda.set_device(rank)
+    dest = torch.zeros([batch_size, width]).cuda()
+    init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 1)
     storage_arr = np.where(root_arr == rank)[0]
     storage_arr = np.where(root_arr >= rank)[0]
     table = hetu_gpu_table.HetuGPUTable(
@@ -27,12 +30,13 @@ def worker(rank):
     print(root_arr[:10])
     embed_id = np.array(range(10), dtype=np.int64)
     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
-    table.push_pull(0, 0)
+    table.push_pull(0, dest.data_ptr())
+    print(rank, dest[0:10])
     start = time.time()
-    for i in range(1000):
+    for i in range(100):
         embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
         table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
-        table.push_pull(0, 0)
+        table.push_pull(0, dest.data_ptr())
     print(time.time()-start)
 
 
