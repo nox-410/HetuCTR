@@ -82,3 +82,44 @@ void HetuGPUTable::all2allReturnValue() {
   checkCudaErrors(ncclGroupEnd());
   INFO("Total embedding fetching serve/query = ", rcvd_offset, "/", snd_offset);
 }
+
+void HetuGPUTable::all2allGradient() {
+  checkCudaErrors(ncclGroupStart());
+  size_t snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
+    checkCudaErrors(ncclSend(
+      d_query_gradient_idx_[0] + snd_offset, prev_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_query_gradient_idx_[1] + rcvd_offset, prev_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+    snd_offset += prev_batch_.u_shape[i];
+    rcvd_offset += prev_batch_.u_shape_exchanged[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+
+  checkCudaErrors(ncclGroupStart());
+  snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
+    checkCudaErrors(ncclSend(
+      d_query_updates_[0] + snd_offset, prev_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_query_updates_[1] + rcvd_offset, prev_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+    snd_offset += prev_batch_.u_shape[i];
+    rcvd_offset += prev_batch_.u_shape_exchanged[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+
+  checkCudaErrors(ncclGroupStart());
+  snd_offset = 0, rcvd_offset = 0;
+  for (int i = 0; i < (int)nrank_; i++) {
+    checkCudaErrors(ncclSend(
+      d_query_val_[0] + snd_offset * kEmbeddingWidth, prev_batch_.u_shape[i] * kEmbeddingWidth,
+      ncclFloat32, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_query_val_[1] + rcvd_offset * kEmbeddingWidth, prev_batch_.u_shape_exchanged[i] * kEmbeddingWidth,
+      ncclFloat32, i, communicator_, stream_main_));
+    snd_offset += prev_batch_.u_shape[i];
+    rcvd_offset += prev_batch_.u_shape_exchanged[i];
+  }
+  checkCudaErrors(ncclGroupEnd());
+  INFO("Total gradient update receive/push = ", rcvd_offset, "/", snd_offset);
+}

@@ -84,3 +84,7 @@ void HetuGPUTable::handleQuery() {
 
   all2allReturnValue();
 }
+
+void HetuGPUTable::handleGradient() {
+
+}

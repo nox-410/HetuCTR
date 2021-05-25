@@ -84,6 +84,7 @@ public:
   void writeBack(embed_t *dst);
   void all2allExchangeShape(const size_t *shape, size_t *shape_out);
   void all2allExchangeQuery();
+  void all2allGradient();
   void all2allReturnOutdated();
   void all2allReturnValue();
 

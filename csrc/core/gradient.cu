@@ -13,7 +13,7 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
       tbl->d_need_update_[id] = 0;
       tbl->d_version_[offset] += update_new;
     } else if (offset == kInvalidIndex) {
-      tbl->d_need_update_[id] = 0;
+      tbl->d_need_update_[id] = 1;
     } else {
       // assert(offset < tbl->kNonLocalStorageMax);
       version_t update_local = tbl->d_updates_[offset];
@@ -86,9 +86,18 @@ void HetuGPUTable::generateGradient(embed_t *grad) {
 
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
     d_need_update_, d_update_prefix_, num_unique, stream_main_));
-  // cudaStreamSynchronize(stream_main_);
+
   table_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this, grad);
 
   all2allExchangeShape(prev_batch_.u_shape, prev_batch_.u_shape_exchanged);
-  cudaStreamSynchronize(stream_main_);
+
+  // checkCudaErrors(cudaStreamSynchronize(stream_main_));
+  // std::cout << (int)rank_ << " ";
+  // for (int i = 0 ; i < nrank_; i++)
+  //   std::cout << prev_batch_.u_shape[i] << " ";
+  // std::cout << std::endl;
+  // std::cout << (int)rank_ << " ";
+  // for (int i = 0 ; i < nrank_; i++)
+  //   std::cout << prev_batch_.u_shape_exchanged[i] << " ";
+  // std::cout << std::endl;
 }
