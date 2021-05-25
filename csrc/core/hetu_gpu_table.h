@@ -48,6 +48,9 @@ public:
   void * d_temp_ = nullptr;
   size_t temp_bytes_ = 0;
 
+  index_t * d_need_update_ = nullptr;
+  index_t * d_update_prefix_ = nullptr;
+
   // query buffer, dual buffer for send and receive
   version_t * d_query_version_[2] = {};
   version_t * d_query_updates_[2] = {};
@@ -75,6 +78,8 @@ public:
   void freeAuxillaryMemory();
 
   void generateQuery();
+  void generateGradient(embed_t *grad);
+  void handleGradient();
   void handleQuery();
   void writeBack(embed_t *dst);
   void all2allExchangeShape(const size_t *shape, size_t *shape_out);

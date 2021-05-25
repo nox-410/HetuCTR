@@ -17,6 +17,7 @@ def worker(rank):
     import torch
     torch.cuda.set_device(rank)
     dest = torch.zeros([batch_size, width]).cuda()
+    grad = torch.zeros([batch_size, width]).cuda()
     init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 1)
     storage_arr = np.where(root_arr == rank)[0]
     storage_arr = np.where(root_arr >= rank)[0]
@@ -26,17 +27,16 @@ def worker(rank):
         length = length, width = width,
         root_arr = root_arr, storage_arr = storage_arr, verbose=1
     )
-    embed_id = np.array(range(1024), dtype=np.int64)
     print(root_arr[:10])
     embed_id = np.array(range(10), dtype=np.int64)
     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
-    table.push_pull(0, dest.data_ptr())
-    print(rank, dest[0:10])
+    table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
+    table.push_pull(grad.data_ptr(), dest.data_ptr())
     start = time.time()
     for i in range(100):
         embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
         table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
-        table.push_pull(0, dest.data_ptr())
+        table.push_pull(grad.data_ptr(), dest.data_ptr())
     print(time.time()-start)
 
 

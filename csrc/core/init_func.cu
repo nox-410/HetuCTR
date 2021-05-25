@@ -192,10 +192,16 @@ void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
     checkCudaErrors(cudaMalloc(
       &d_return_version_[i], batch_limit * sizeof(version_t)));
   }
+  checkCudaErrors(cudaMalloc(
+    &d_need_update_, batch_size * sizeof(index_t)));
+  checkCudaErrors(cudaMalloc(
+    &d_update_prefix_, batch_size * sizeof(index_t)));
 }
 
 void HetuGPUTable::freeAuxillaryMemory() {
   checkCudaErrors(cudaFree(d_temp_));
+  checkCudaErrors(cudaFree(d_need_update_));
+  checkCudaErrors(cudaFree(d_update_prefix_));
   for (int i = 0; i < 2; i++) {
     checkCudaErrors(cudaFree(d_query_idx_[i]));
     checkCudaErrors(cudaFree(d_query_gradient_idx_[i]));
