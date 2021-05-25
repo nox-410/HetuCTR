@@ -85,6 +85,29 @@ void HetuGPUTable::handleQuery() {
   all2allReturnValue();
 }
 
-void HetuGPUTable::handleGradient() {
+__global__ void table_update_remote_kernel(HetuGPUTable *tbl, size_t start, size_t len) {
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < len) {
+    size_t width = tbl->kEmbeddingWidth;
+    id += start;
+    index_t embedding_idx = tbl->d_query_gradient_idx_[1][id];
+    auto iter = tbl->table_->find(embedding_idx);
 
+    assert(tbl->d_root_[embedding_idx] == tbl->rank_);
+    assert(iter != tbl->table_->end());
+    index_t offset = iter->second;
+
+    tbl->d_version_[offset] += tbl->d_query_updates_[1][id];
+    for (int i = 0; i < tbl->kEmbeddingWidth; i++)
+      tbl->d_embedding_[offset * width + i] += tbl->d_query_val_[1][id * width + i];
+  }
+}
+
+void HetuGPUTable::handleGradient() {
+  size_t offset = 0;
+  for (worker_t i = 0 ; i < nrank_; i++) {
+    size_t shape = prev_batch_.u_shape_exchanged[i];
+    table_update_remote_kernel<<<shape, DIM_BLOCK, 0, stream_main_>>>(this, offset, shape);
+    offset += shape;
+  }
 }
