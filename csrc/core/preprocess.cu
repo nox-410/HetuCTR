@@ -23,7 +23,7 @@ void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank
   checkCudaErrors(cudaMalloc(
     &pdata.d_root, sizeof(worker_t) * batch_size));
   checkCudaErrors(cudaMalloc(
-    &pdata.d_run_length, sizeof(index_t) * batch_size));
+    &pdata.d_run_length, sizeof(index_t) * (batch_size + 1)));
   checkCudaErrors(cudaMalloc(
     &pdata.d_sorted_arg, sizeof(index_t) * batch_size));
   checkCudaErrors(cudaMallocManaged(
@@ -94,7 +94,7 @@ __global__ void computeBatch(HetuGPUTable *tbl) {
     // This computes where we can find the unique index from the original index
     index_t idx_start, idx_end;
     idx_start = tbl->cur_batch_.d_run_length[id];
-    idx_end = id == n - 1 ? tbl->cur_batch_.batch_size : tbl->cur_batch_.d_run_length[id + 1];
+    idx_end = tbl->cur_batch_.d_run_length[id + 1];
     for (index_t i = idx_start; i < idx_end; i++) {
       index_t arg = tbl->cur_batch_.d_sorted_arg[i];
       tbl->cur_batch_.d_idx_map[arg] = id;
@@ -138,7 +138,7 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // Store the predix sum of length, this will be used in gradient reduction
   // although we should compute [0, unique_size), but we don't want to sync here
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
-    cur_batch_.d_run_length, cur_batch_.d_run_length, cur_batch_.batch_size, stream_main_));
+    cur_batch_.d_run_length, cur_batch_.d_run_length, cur_batch_.batch_size + 1, stream_main_));
 
   // Computes other preprocess data
   computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
@@ -155,10 +155,10 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
 
   // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
-  // std::vector<index_t> h(batch_size);
-  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_run_length, batch_size * 8, cudaMemcpyDeviceToHost));
+  // std::vector<index_t> h(batch_size + 1);
+  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_run_length, (batch_size + 1) * 8, cudaMemcpyDeviceToHost));
   // if (rank_ == 0)
-  // for (int  i = 0 ; i < batch_size; i++) {
+  // for (int  i = 0 ; i <= batch_size; i++) {
   //   std::cout << h[i] << std::endl;
   // }
   // std::cout << "rank " << rank_ << ":";
