@@ -22,6 +22,10 @@ void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank
     &pdata.d_offset, sizeof(index_t) * batch_size));
   checkCudaErrors(cudaMalloc(
     &pdata.d_root, sizeof(worker_t) * batch_size));
+  checkCudaErrors(cudaMalloc(
+    &pdata.d_run_length, sizeof(index_t) * batch_size));
+  checkCudaErrors(cudaMalloc(
+    &pdata.d_sorted_arg, sizeof(index_t) * batch_size));
   checkCudaErrors(cudaMallocManaged(
     &pdata.u_shape, sizeof(size_t) * (nrank + 1)));
   checkCudaErrors(cudaMallocManaged(
@@ -34,6 +38,8 @@ void freePreprocessData(PreprocessData &pdata) {
   checkCudaErrors(cudaFree(pdata.d_idx_map));
   checkCudaErrors(cudaFree(pdata.d_offset));
   checkCudaErrors(cudaFree(pdata.d_root));
+  checkCudaErrors(cudaFree(pdata.d_run_length));
+  checkCudaErrors(cudaFree(pdata.d_sorted_arg));
   checkCudaErrors(cudaFree(pdata.u_shape));
   checkCudaErrors(cudaFree(pdata.u_shape_exchanged));
 }
@@ -46,18 +52,17 @@ __global__ void generateSortkeys(HetuGPUTable *tbl) {
     assert(embedding_idx < tbl->kEmbeddingIDMax);
     worker_t r = tbl->d_root_[embedding_idx];
     tbl->cur_batch_.d_idx_map[id] = embedding_idx + tbl->kEmbeddingIDMax * r;
+    tbl->cur_batch_.d_sorted_arg[id] = id;
   }
 }
 
-// A simple binary search implementation
-__device__ index_t lowerBound(const index_t *data, const size_t len, index_t target) {
-  index_t start = 0, last = len;
-	while (start < last) {
-		index_t mid = (start + last) / 2;
-		if (data[mid] >= target) last = mid;
-		else start = mid + 1;
-	}
-	return start;
+__global__ void writeSortedIndex(HetuGPUTable *tbl) {
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < tbl->cur_batch_.batch_size) {
+    index_t arg = tbl->cur_batch_.d_sorted_arg[id];
+    index_t embedding_idx = tbl->cur_batch_.d_idx[arg];
+    tbl->cur_batch_.d_unique_idx[id] = embedding_idx;
+  }
 }
 
 // This will compute cur_batch_.d_idx_map
@@ -85,11 +90,15 @@ __global__ void computeBatch(HetuGPUTable *tbl) {
         tbl->cur_batch_.u_shape[i] = n;
       }
     }
-  }
-  // This computes where we can find the unique index from the original index
-  if (id < tbl->cur_batch_.batch_size) {
-    index_t val = tbl->cur_batch_.d_idx[id];
-    tbl->cur_batch_.d_idx_map[id] = lowerBound(tbl->cur_batch_.d_unique_idx, n, val);
+
+    // This computes where we can find the unique index from the original index
+    index_t idx_start, idx_end;
+    idx_start = tbl->cur_batch_.d_run_length[id];
+    idx_end = id == n - 1 ? tbl->cur_batch_.batch_size : tbl->cur_batch_.d_run_length[id + 1];
+    for (index_t i = idx_start; i < idx_end; i++) {
+      index_t arg = tbl->cur_batch_.d_sorted_arg[i];
+      tbl->cur_batch_.d_idx_map[arg] = id;
+    }
   }
 }
 
@@ -115,16 +124,23 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // using end_bit smaller than 64 can yield corresponding performance improvement
   int end_bit = std::ceil(std::log2(kEmbeddingIDMax * nrank_));
   checkCudaErrors(cub::DeviceRadixSort::SortPairs(
-    d_temp_, temp_bytes_, cur_batch_.d_idx_map, cur_batch_.d_idx_map, cur_batch_.d_idx, cur_batch_.d_unique_idx,
+    d_temp_, temp_bytes_, cur_batch_.d_idx_map, cur_batch_.d_idx_map, cur_batch_.d_sorted_arg, cur_batch_.d_sorted_arg,
     batch_size, 0, end_bit, stream_main_));
 
+  // After argsort write value to d_unique_idx
+  writeSortedIndex<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
+
   // perform unique operation, store total number of unique embedding items;
-  // we don't really need the count of each run, so we put it in offset and will overwrite it later
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
-    d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_offset,
+    d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_run_length,
     &cur_batch_.unique_size, batch_size, stream_main_));
 
-  // This computes other preprocess data
+  // Store the predix sum of length, this will be used in gradient reduction
+  // although we should compute [0, unique_size), but we don't want to sync here
+  checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
+    cur_batch_.d_run_length, cur_batch_.d_run_length, cur_batch_.batch_size, stream_main_));
+
+  // Computes other preprocess data
   computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
 
   // convert offset to shape
@@ -139,8 +155,8 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
 
   // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
-  std::vector<index_t> h(batch_size);
-  checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_offset, batch_size * 8, cudaMemcpyDeviceToHost));
+  // std::vector<index_t> h(batch_size);
+  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_run_length, batch_size * 8, cudaMemcpyDeviceToHost));
   // if (rank_ == 0)
   // for (int  i = 0 ; i < batch_size; i++) {
   //   std::cout << h[i] << std::endl;

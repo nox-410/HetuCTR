@@ -10,6 +10,8 @@ struct PreprocessData {
   size_t unique_size = 0;
   index_t *d_idx = nullptr;
   index_t *d_unique_idx = nullptr;
+  index_t *d_sorted_arg = nullptr;
+  index_t *d_run_length = nullptr;
   index_t *d_idx_map = nullptr;
   worker_t *d_root = nullptr;
   index_t *d_offset = nullptr;

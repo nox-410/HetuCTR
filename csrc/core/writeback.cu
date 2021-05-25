@@ -24,7 +24,7 @@ __global__ void writeBackTargetKernel(HetuGPUTable *tbl, embed_t *dst) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t len = tbl->cur_batch_.batch_size;
   if (id < len) {
-    index_t mapped_idx = tbl->cur_batch_.d_unique_idx[id];
+    index_t mapped_idx = tbl->cur_batch_.d_idx_map[id];
     embed_t *val;
     index_t mem_offset = tbl->cur_batch_.d_offset[mapped_idx];
     if (mem_offset == kInvalidIndex) {
