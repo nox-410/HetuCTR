@@ -19,6 +19,8 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
       version_t update_local = tbl->d_updates_[offset];
       tbl->d_need_update_[id] = update_local + update_new < tbl->push_bound_ ? 0 : 1;
     }
+    if (tbl->d_need_update_[id])
+      atomicAdd(&tbl->prev_batch_.u_shape[tbl->prev_batch_.d_root[id]], 1);
   }
 }
 
@@ -71,7 +73,14 @@ __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
   }
 }
 
+__global__ void write_gradient_shape_kernel(HetuGPUTable *tbl) {
+  const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t n = tbl->prev_batch_.unique_size;
+  if (id >= n) return;
+}
+
 void HetuGPUTable::generateGradient(embed_t *grad) {
+  memset(prev_batch_.u_shape, 0 , nrank_ * sizeof(size_t));
   size_t num_unique = prev_batch_.unique_size;
   decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this);
 
@@ -79,5 +88,7 @@ void HetuGPUTable::generateGradient(embed_t *grad) {
     d_need_update_, d_update_prefix_, num_unique, stream_main_));
   // cudaStreamSynchronize(stream_main_);
   table_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this, grad);
+
+  all2allExchangeShape(prev_batch_.u_shape, prev_batch_.u_shape_exchanged);
   cudaStreamSynchronize(stream_main_);
 }

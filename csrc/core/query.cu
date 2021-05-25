@@ -83,6 +83,4 @@ void HetuGPUTable::handleQuery() {
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 
   all2allReturnValue();
-
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
