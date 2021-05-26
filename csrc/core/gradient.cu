@@ -17,7 +17,7 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
     } else {
       // assert(offset < tbl->kNonLocalStorageMax);
       version_t update_local = tbl->d_updates_[offset];
-      tbl->d_need_update_[id] = update_local + update_new < tbl->push_bound_ ? 0 : 1;
+      tbl->d_need_update_[id] = update_local + update_new <= tbl->push_bound_ ? 0 : 1;
       tbl->d_updates_[offset] += update_new;
     }
     if (tbl->d_need_update_[id])
@@ -51,9 +51,12 @@ __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
   index_t l = tbl->prev_batch_.d_run_length[id], r = tbl->prev_batch_.d_run_length[id + 1];
 
   if (need_update) {
-    tbl->d_query_gradient_idx_[0][query_idx] = tbl->prev_batch_.d_unique_idx[id];
     version_t update_count = r - l;
-    if (update_type == 2) update_count = tbl->d_updates_[offset];
+    if (update_type == 2) {
+      update_count = tbl->d_updates_[offset];
+      tbl->d_updates_[offset] = 0;
+    }
+    tbl->d_query_gradient_idx_[0][query_idx] = tbl->prev_batch_.d_unique_idx[id];
     tbl->d_query_updates_[0][query_idx] = update_count;
   }
 
