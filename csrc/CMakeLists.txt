@@ -10,14 +10,13 @@ target_include_directories(hetu_gpu_table
     ${cub_SOURCE_DIR}
     ${thrust_SOURCE_DIR}
     ${NCCL_INCLUDE_DIRS}
-    ${ZMQ_INCLUDE_DIRS}
 )
 
 target_link_libraries(hetu_gpu_table
     PRIVATE
     CUDA::cudart
     ${NCCL_LIBRARIES}
-    ${ZMQ_LIBRARIES}
+    ZMQ::lib
 )
 
 # this library is for c++ unit test, so no pybind11
@@ -29,12 +28,11 @@ target_include_directories(hetu_gpu_table_cpp
     ${cub_SOURCE_DIR}
     ${thrust_SOURCE_DIR}
     ${NCCL_INCLUDE_DIRS}
-    ${ZMQ_INCLUDE_DIRS}
 )
 
 target_link_libraries(hetu_gpu_table_cpp
     PUBLIC
     CUDA::cudart
     ${NCCL_LIBRARIES}
-    ${ZMQ_LIBRARIES}
+    ZMQ::lib
 )

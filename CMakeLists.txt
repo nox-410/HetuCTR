@@ -14,10 +14,11 @@ set(CMAKE_CUDA_FLAGS "-O3 -w")
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
+set(CUDAToolkit_ROOT /usr/local/cuda)
 find_package(CUDAToolkit REQUIRED)
 
-# set(NCCL_ROOT)
-find_package(NCCL REQUIRED 2.7...)
+set(NCCL_ROOT)
+find_package(NCCL REQUIRED)
 
 include(FetchContent)
 
@@ -29,8 +30,8 @@ FetchContent_Declare(cub URL https://github.com/NVlabs/cub/archive/refs/tags/1.1
 message(STATUS "Preparing cub ...")
 FetchContent_MakeAvailable(cub)
 
-find_package(ZMQ 4... REQUIRED)
-find_package(pybind11 2.6... CONFIG)
+find_package(ZMQ 4 REQUIRED)
+find_package(pybind11 2.6 CONFIG)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc)
 add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
