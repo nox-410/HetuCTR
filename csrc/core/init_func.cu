@@ -22,7 +22,6 @@ void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
     checkCudaErrors(ncclGetUniqueId(&uid));
   }
   tcp.broadcast(&uid, sizeof(uid));
-  INFO("NCCL Connection built successfully");
   checkCudaErrors(ncclCommInitRank(&communicator_, nrank_, uid, rank_));
 }
 
@@ -137,6 +136,7 @@ HetuGPUTable::HetuGPUTable(
 
   // Setup NCCL
   initializeNCCL(ip, port);
+  INFO("NCCL Connection built successfully");
 
   // Setup Embedding Table
   initializeTable(root_id_arr, storage_id_arr);
@@ -144,7 +144,7 @@ HetuGPUTable::HetuGPUTable(
   // Initialize Embedding Table with initializer
   unsigned int seed = 0;
   seed = std::chrono::system_clock::now().time_since_epoch().count();
-  initialize(d_embedding_, kEmbeddingIDMax * kEmbeddingWidth, init, false, seed);
+  initialize(d_embedding_, kStorageMax * kEmbeddingWidth, init, false, seed);
   INFO("Table Init Successfully");
 
   // Initialize preprocess data and auxillary memory
@@ -195,7 +195,7 @@ void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
   checkCudaErrors(cudaMalloc(
     &d_need_update_, batch_size * sizeof(index_t)));
   checkCudaErrors(cudaMalloc(
-    &d_update_prefix_, batch_size * sizeof(index_t)));
+    &d_update_prefix_, batch_limit * sizeof(index_t)));
 }
 
 void HetuGPUTable::freeAuxillaryMemory() {

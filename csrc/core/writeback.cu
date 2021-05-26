@@ -8,7 +8,7 @@ using namespace hetu;
 __global__ void writeBackUpdateLocalKernel(HetuGPUTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
-    index_t embedding_idx = tbl->d_query_idx_[0][id];
+    index_t embedding_idx = tbl->d_query_idx_[1][id];
     auto iter = tbl->table_->find(embedding_idx);
     if (iter != tbl->table_->end()) {
       index_t mem_offset = iter->second;
@@ -47,9 +47,9 @@ void HetuGPUTable::writeBack(embed_t *dst) {
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
     d_return_outdated_[1], d_return_outdated_[0], cur_batch_.unique_size, stream_main_));
 
-  // Select index that need to be updated into d_query_idx[0]
+  // Select index that need to be updated into d_query_idx[1]
   checkCudaErrors(cub::DeviceSelect::Flagged(d_temp_, temp_bytes_,
-    d_query_idx_[0], d_return_outdated_[1], d_query_idx_[0],
+    d_query_idx_[0], d_return_outdated_[1], d_query_idx_[1],
     &cur_batch_.u_shape_exchanged[nrank_], cur_batch_.unique_size, stream_main_));
 
   // Update received value into local storage

@@ -43,7 +43,7 @@ __global__ void writeReturnValue(HetuGPUTable *tbl) {
   size_t len = tbl->cur_batch_.u_shape[tbl->nrank_];
   if (id < len) {
     version_t local_version = tbl->d_query_version_[1][id];
-    index_t embedding_idx = tbl->d_query_idx_[1][id];
+    index_t embedding_idx = tbl->d_update_prefix_[id];
     auto iter = tbl->table_->find(embedding_idx);
 
     assert(tbl->d_root_[embedding_idx] == tbl->rank_);
@@ -73,10 +73,10 @@ void HetuGPUTable::handleQuery() {
 
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
 
-  // select index that requires update into d_query_idx_[0]
+  // select index that requires update into d_update_prefix_
   // total number stored in cur_batch_.u_shape[nrank_]
   checkCudaErrors(cub::DeviceSelect::Flagged(d_temp_, temp_bytes_,
-    d_query_idx_[1], d_return_outdated_[0], d_query_idx_[1], &cur_batch_.u_shape[nrank_], num_rcvd, stream_main_));
+    d_query_idx_[1], d_return_outdated_[0], d_update_prefix_, &cur_batch_.u_shape[nrank_], num_rcvd, stream_main_));
 
   writeReturnValue<<<DIM_GRID(num_rcvd), DIM_BLOCK, 0, stream_main_>>>(this);
 

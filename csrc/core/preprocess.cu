@@ -52,7 +52,7 @@ __global__ void generateSortkeys(HetuGPUTable *tbl) {
     assert(embedding_idx < tbl->kEmbeddingIDMax);
     worker_t r = tbl->d_root_[embedding_idx];
     tbl->cur_batch_.d_idx_map[id] = embedding_idx + tbl->kEmbeddingIDMax * r;
-    tbl->cur_batch_.d_sorted_arg[id] = id;
+    tbl->cur_batch_.d_offset[id] = id;
   }
 }
 
@@ -61,7 +61,7 @@ __global__ void writeSortedIndex(HetuGPUTable *tbl) {
   if (id < tbl->cur_batch_.batch_size) {
     index_t arg = tbl->cur_batch_.d_sorted_arg[id];
     index_t embedding_idx = tbl->cur_batch_.d_idx[arg];
-    tbl->cur_batch_.d_unique_idx[id] = embedding_idx;
+    tbl->cur_batch_.d_offset[id] = embedding_idx;
   }
 }
 
@@ -123,16 +123,17 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // we don't need to sort all the bits when using radix sort.
   // using end_bit smaller than 64 can yield corresponding performance improvement
   int end_bit = std::ceil(std::log2(kEmbeddingIDMax * nrank_));
+  // store temp unused temp result in d_offset
   checkCudaErrors(cub::DeviceRadixSort::SortPairs(
-    d_temp_, temp_bytes_, cur_batch_.d_idx_map, cur_batch_.d_idx_map, cur_batch_.d_sorted_arg, cur_batch_.d_sorted_arg,
+    d_temp_, temp_bytes_, cur_batch_.d_idx_map, cur_batch_.d_unique_idx, cur_batch_.d_offset, cur_batch_.d_sorted_arg,
     batch_size, 0, end_bit, stream_main_));
 
-  // After argsort write value to d_unique_idx
+  // After argsort write value to d_offset (temp, modify in next step)
   writeSortedIndex<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
 
   // perform unique operation, store total number of unique embedding items;
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
-    d_temp_, temp_bytes_, cur_batch_.d_unique_idx, cur_batch_.d_unique_idx, cur_batch_.d_run_length,
+    d_temp_, temp_bytes_, cur_batch_.d_offset, cur_batch_.d_unique_idx, cur_batch_.d_run_length,
     &cur_batch_.unique_size, batch_size, stream_main_));
 
   // Store the predix sum of length, this will be used in gradient reduction
