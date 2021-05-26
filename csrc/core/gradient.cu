@@ -4,6 +4,11 @@
 
 using namespace hetu;
 
+// figure out all gradients to push
+// 1. compute d_need_update_ as 0 or 1
+// 2. update d_version_ (stored and root=self)
+// 3. update d_updates_ (stored and root!=self)
+//
 __global__ void decide_update_kernel(HetuGPUTable *tbl) {
   const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->prev_batch_.unique_size) {
@@ -25,6 +30,7 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
   }
 }
 
+// aggregate all the gradients into storage
 __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
   const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   const size_t width = tbl->kEmbeddingWidth;
@@ -77,17 +83,12 @@ __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
   }
 }
 
-__global__ void write_gradient_shape_kernel(HetuGPUTable *tbl) {
-  const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t n = tbl->prev_batch_.unique_size;
-  if (id >= n) return;
-}
-
 void HetuGPUTable::generateGradient(embed_t *grad) {
   memset(prev_batch_.u_shape, 0 , nrank_ * sizeof(size_t));
   size_t num_unique = prev_batch_.unique_size;
   decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this);
 
+  // d_update_prefix_[i] stores which index maps to the gradient communication slot i
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
     d_need_update_, d_update_prefix_, num_unique, stream_main_));
 
