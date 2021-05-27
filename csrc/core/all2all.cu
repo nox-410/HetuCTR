@@ -20,13 +20,13 @@ void HetuTable::all2allExchangeQuery() {
   checkCudaErrors(ncclGroupStart());
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
-      d_query_idx_[0] + snd_offset, cur_batch_.h_shape[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_idx_[0] + snd_offset, cur_batch_.h_shape[i], index_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
-      d_query_idx_[1] + rcvd_offset, cur_batch_.h_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_idx_[1] + rcvd_offset, cur_batch_.h_shape_exchanged[i], index_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclSend(
-      d_query_version_[0] + snd_offset, cur_batch_.h_shape[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_version_[0] + snd_offset, cur_batch_.h_shape[i], version_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
-      d_query_version_[1] + rcvd_offset, cur_batch_.h_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_version_[1] + rcvd_offset, cur_batch_.h_shape_exchanged[i], version_nccl_t, i, communicator_, stream_main_));
     snd_offset += cur_batch_.h_shape[i];
     rcvd_offset += cur_batch_.h_shape_exchanged[i];
   }
@@ -41,19 +41,19 @@ void HetuTable::all2allExchangeQuery() {
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
-      d_query_gradient_idx_[0] + snd_offset, prev_batch_.h_shape[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_gradient_idx_[0] + snd_offset, prev_batch_.h_shape[i], index_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
-      d_query_gradient_idx_[1] + rcvd_offset, prev_batch_.h_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_gradient_idx_[1] + rcvd_offset, prev_batch_.h_shape_exchanged[i], index_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclSend(
       d_query_val_[0] + snd_offset * kEmbeddingWidth, prev_batch_.h_shape[i] * kEmbeddingWidth,
-      ncclFloat32, i, communicator_, stream_main_));
+      embed_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_query_val_[1] + rcvd_offset * kEmbeddingWidth, prev_batch_.h_shape_exchanged[i] * kEmbeddingWidth,
-      ncclFloat32, i, communicator_, stream_main_));
+      embed_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclSend(
-      d_query_updates_[0] + snd_offset, prev_batch_.h_shape[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_updates_[0] + snd_offset, prev_batch_.h_shape[i], index_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
-      d_query_updates_[1] + rcvd_offset, prev_batch_.h_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+      d_query_updates_[1] + rcvd_offset, prev_batch_.h_shape_exchanged[i], index_nccl_t, i, communicator_, stream_main_));
     snd_offset += prev_batch_.h_shape[i];
     rcvd_offset += prev_batch_.h_shape_exchanged[i];
   }
@@ -66,9 +66,9 @@ void HetuTable::all2allReturnOutdated() {
   size_t snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
-      d_return_outdated_[0] + snd_offset, cur_batch_.h_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+      d_return_outdated_[0] + snd_offset, cur_batch_.h_shape_exchanged[i], index_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
-      d_return_outdated_[1] + rcvd_offset, cur_batch_.h_shape[i], ncclInt64, i, communicator_, stream_main_));
+      d_return_outdated_[1] + rcvd_offset, cur_batch_.h_shape[i], index_nccl_t, i, communicator_, stream_main_));
     snd_offset += cur_batch_.h_shape_exchanged[i];
     rcvd_offset += cur_batch_.h_shape[i];
   }
@@ -80,15 +80,15 @@ void HetuTable::all2allReturnValue() {
   size_t snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
-      d_return_version_[0] + snd_offset, cur_batch_.h_shape[i], ncclInt64, i, communicator_, stream_main_));
+      d_return_version_[0] + snd_offset, cur_batch_.h_shape[i], version_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
-      d_return_version_[1] + rcvd_offset, cur_batch_.h_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
+      d_return_version_[1] + rcvd_offset, cur_batch_.h_shape_exchanged[i], version_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclSend(
       d_return_val_[0] + snd_offset * kEmbeddingWidth, cur_batch_.h_shape[i] * kEmbeddingWidth,
-      ncclFloat32, i, communicator_, stream_main_));
+      embed_nccl_t, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_return_val_[1] + rcvd_offset * kEmbeddingWidth, cur_batch_.h_shape_exchanged[i] * kEmbeddingWidth,
-      ncclFloat32, i, communicator_, stream_main_));
+      embed_nccl_t, i, communicator_, stream_main_));
     snd_offset += cur_batch_.h_shape[i];
     rcvd_offset += cur_batch_.h_shape_exchanged[i];
   }

@@ -1,13 +1,13 @@
 #pragma once
 
+#include <cuda_runtime.h>
+#include <nccl.h>
+
 #include "types.h"
 #include "preprocess_struct.h"
 #include "common/sarray.h"
 #include "common/logging.h"
 #include "utils/initializer.h"
-
-#include <cuda_runtime.h>
-#include <nccl.h>
 
 #include "utils/pinned.cuh"
 #include "cudf/concurrent_unordered_map.cuh"

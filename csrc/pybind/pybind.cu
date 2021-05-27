@@ -20,6 +20,8 @@ static std::unique_ptr<HetuTable> makeHetuTable(
   const Initializer &init,
   const int verbose)
 {
+  PYTHON_CHECK_ARRAY(root_id_arr);
+  PYTHON_CHECK_ARRAY(storage_id_arr);
   SArray<worker_t> root_id_arr_shared(root_id_arr.mutable_data(), root_id_arr.size());
   SArray<index_t> storage_id_arr_shared(storage_id_arr.mutable_data(), storage_id_arr.size());
   return std::make_unique<HetuTable>(

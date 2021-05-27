@@ -32,4 +32,10 @@ const size_t DIM_BLOCK = 128;
 
 #define DIM_GRID(x) ( ((size_t)x + DIM_BLOCK - 1) / DIM_BLOCK )
 
+#ifdef NCCL_H_
+const ncclDataType_t embed_nccl_t = ncclFloat32;
+const ncclDataType_t index_nccl_t = ncclInt64;
+const ncclDataType_t version_nccl_t = ncclInt64;
+#endif
+
 } // namespace hetuCTR
