@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(HetuGPUTable C CXX CUDA)
-
-enable_testing()
+project(HetuGPUTable C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,8 +15,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 set(CUDAToolkit_ROOT /usr/local/cuda)
 set(CMAKE_CUDA_COMPILER ${CUDAToolkit_ROOT}/bin/nvcc)
 find_package(CUDAToolkit REQUIRED)
+enable_language(CUDA)
 
-set(NCCL_ROOT)
+set(NCCL_ROOT $ENV{CONDA_PREFIX})
 find_package(NCCL REQUIRED)
 
 include(FetchContent)
@@ -35,4 +34,5 @@ find_package(ZMQ 4 REQUIRED)
 find_package(pybind11 2.6 CONFIG)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc)
-add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
+
+enable_testing()

@@ -18,21 +18,3 @@ target_link_libraries(hetu_gpu_table
     ${NCCL_LIBRARIES}
     ZMQ::lib
 )
-
-# this library is for c++ unit test, so no pybind11
-add_library(hetu_gpu_table_cpp SHARED ${utils_src} ${core_src})
-
-target_include_directories(hetu_gpu_table_cpp
-    PUBLIC
-    .
-    ${cub_SOURCE_DIR}
-    ${thrust_SOURCE_DIR}
-    ${NCCL_INCLUDE_DIRS}
-)
-
-target_link_libraries(hetu_gpu_table_cpp
-    PUBLIC
-    CUDA::cudart
-    ${NCCL_LIBRARIES}
-    ZMQ::lib
-)

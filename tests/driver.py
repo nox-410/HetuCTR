@@ -20,10 +20,9 @@ def worker(rank):
     grad = torch.zeros([batch_size, width]).cuda()
     init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 1)
     storage_arr = np.where(root_arr == rank)[0]
-    storage_arr = np.where(root_arr >= rank)[0]
     table = hetu_gpu_table.HetuGPUTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
-        pull_bound = 10, push_bound = 10, init=init,
+        pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,
         root_arr = root_arr, storage_arr = storage_arr, verbose=1
     )
@@ -33,7 +32,7 @@ def worker(rank):
     table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
     table.push_pull(grad.data_ptr(), dest.data_ptr())
     start = time.time()
-    for i in range(100):
+    for i in range(1000):
         embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
         table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
         table.push_pull(grad.data_ptr(), dest.data_ptr())

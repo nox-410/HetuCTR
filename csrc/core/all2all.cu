@@ -26,8 +26,8 @@ void HetuGPUTable::all2allExchangeQuery() {
     snd_offset += cur_batch_.u_shape[i];
     rcvd_offset += cur_batch_.u_shape_exchanged[i];
   }
-  checkCudaErrors(ncclGroupEnd());
-  checkCudaErrors(ncclGroupStart());
+  // checkCudaErrors(ncclGroupEnd());
+  // checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
@@ -37,11 +37,11 @@ void HetuGPUTable::all2allExchangeQuery() {
     snd_offset += cur_batch_.u_shape[i];
     rcvd_offset += cur_batch_.u_shape_exchanged[i];
   }
-  checkCudaErrors(ncclGroupEnd());
   all2all_received_ = rcvd_offset;
+  // checkCudaErrors(ncclGroupEnd());
 
   // gradient part, using prev_batch
-  checkCudaErrors(ncclGroupStart());
+  // checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
@@ -51,9 +51,8 @@ void HetuGPUTable::all2allExchangeQuery() {
     snd_offset += prev_batch_.u_shape[i];
     rcvd_offset += prev_batch_.u_shape_exchanged[i];
   }
-  checkCudaErrors(ncclGroupEnd());
-
-  checkCudaErrors(ncclGroupStart());
+  // checkCudaErrors(ncclGroupEnd());
+  // checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
@@ -63,9 +62,8 @@ void HetuGPUTable::all2allExchangeQuery() {
     snd_offset += prev_batch_.u_shape[i];
     rcvd_offset += prev_batch_.u_shape_exchanged[i];
   }
-  checkCudaErrors(ncclGroupEnd());
-
-  checkCudaErrors(ncclGroupStart());
+  // checkCudaErrors(ncclGroupEnd());
+  // checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
@@ -106,9 +104,8 @@ void HetuGPUTable::all2allReturnValue() {
     snd_offset += cur_batch_.u_shape[i];
     rcvd_offset += cur_batch_.u_shape_exchanged[i];
   }
-  checkCudaErrors(ncclGroupEnd());
-
-  checkCudaErrors(ncclGroupStart());
+  // checkCudaErrors(ncclGroupEnd());
+  // checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
