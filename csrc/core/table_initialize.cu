@@ -11,7 +11,7 @@
 
 namespace hetuCTR {
 
-void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
+void HetuTable::initializeNCCL(const std::string &ip, const int port) {
   checkCudaErrors(cudaSetDevice(device_id_));
   checkCudaErrors(cudaStreamCreate(&stream_main_));
   checkCudaErrors(cudaStreamCreate(&stream_sub_));
@@ -58,7 +58,7 @@ __global__ void insert_kernel(Table* table, const typename Table::key_type* cons
   }
 }
 
-void HetuGPUTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr) {
+void HetuTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> storage_id_arr) {
   // copy root id array, this indicates which worker holds an embedding.
   checkCudaErrors(cudaMalloc(
     &d_root_, sizeof(worker_t) * kEmbeddingIDMax));
@@ -104,7 +104,7 @@ void HetuGPUTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t>
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
 
-HetuGPUTable::HetuGPUTable(
+HetuTable::HetuTable(
   const int rank,
   const int nrank,
   const int device_id,
@@ -151,10 +151,10 @@ HetuGPUTable::HetuGPUTable(
   createPreprocessData(cur_batch_, batch_size_reserved_, nrank_);
   createPreprocessData(prev_batch_, batch_size_reserved_, nrank_);
   allocateAuxillaryMemory(batch_size_reserved_);
-  checkCudaErrors(cudaMalloc(&d_this, sizeof(HetuGPUTable)));
+  checkCudaErrors(cudaMalloc(&d_this, sizeof(HetuTable)));
 }
 
-void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
+void HetuTable::allocateAuxillaryMemory(size_t batch_size) {
   freeAuxillaryMemory();
   size_t temp_bytes_max = 1, temp_bytes;
 
@@ -201,7 +201,7 @@ void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
     &d_shape_, sizeof(size_t)));
 }
 
-void HetuGPUTable::freeAuxillaryMemory() {
+void HetuTable::freeAuxillaryMemory() {
   checkCudaErrors(cudaFree(d_temp_));
   checkCudaErrors(cudaFree(d_need_update_));
   checkCudaErrors(cudaFree(d_update_prefix_));
@@ -219,7 +219,7 @@ void HetuGPUTable::freeAuxillaryMemory() {
   }
 }
 
-HetuGPUTable::~HetuGPUTable() {
+HetuTable::~HetuTable() {
   checkCudaErrors(ncclCommDestroy(communicator_));
   checkCudaErrors(cudaStreamDestroy(stream_main_));
   checkCudaErrors(cudaStreamDestroy(stream_sub_));

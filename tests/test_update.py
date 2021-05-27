@@ -19,7 +19,7 @@ def test_one(rank):
     grad = torch.ones([batch_size, width]).cuda()
     init = hetuCTR.Initializer(hetuCTR.InitType.Zero, 0 , 0)
     storage_arr = np.where(root_arr <= rank)[0]
-    table = hetuCTR.HetuGPUTable(
+    table = hetuCTR.HetuTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,
@@ -46,7 +46,7 @@ def test_two(rank):
     dest = torch.zeros([batch_size, width]).cuda()
     init = hetuCTR.Initializer(hetuCTR.InitType.Zero, 0 , 0)
     storage_arr = np.where(root_arr <= rank)[0]
-    table = hetuCTR.HetuGPUTable(
+    table = hetuCTR.HetuTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,

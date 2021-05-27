@@ -5,7 +5,7 @@
 namespace hetuCTR {
 
 // aggregate all the gradients into storage
-__global__ void gradient_reduction_kernel(HetuGPUTable *tbl, embed_t *grad) {
+__global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
   const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   const size_t width = tbl->kEmbeddingWidth;
   if (id >= tbl->prev_batch_.unique_size) return;
@@ -57,13 +57,13 @@ __global__ void gradient_reduction_kernel(HetuGPUTable *tbl, embed_t *grad) {
   }
 }
 
-void HetuGPUTable::generateGradient(embed_t *grad) {
+void HetuTable::generateGradient(embed_t *grad) {
   size_t num_unique = prev_batch_.unique_size;
 
   gradient_reduction_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(d_this, grad);
 }
 
-__global__ void lookup_version_kernel(HetuGPUTable *tbl) {
+__global__ void lookup_version_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.unique_size) {
     index_t idx = tbl->cur_batch_.d_offset[id];
@@ -72,7 +72,7 @@ __global__ void lookup_version_kernel(HetuGPUTable *tbl) {
   }
 }
 
-void HetuGPUTable::generateQuery() {
+void HetuTable::generateQuery() {
   // generate local version for each embedding lookup
   lookup_version_kernel<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
   // Copy index to query buffer

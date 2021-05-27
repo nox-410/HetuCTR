@@ -3,7 +3,7 @@
 
 namespace hetuCTR {
 
-void HetuGPUTable::all2allExchangeShape(const size_t *shape, size_t *shape_out) {
+void HetuTable::all2allExchangeShape(const size_t *shape, size_t *shape_out) {
   assert(shape != shape_out);
   checkCudaErrors(ncclGroupStart());
   for (int i = 0; i < nrank_; i++) {
@@ -15,7 +15,7 @@ void HetuGPUTable::all2allExchangeShape(const size_t *shape, size_t *shape_out) 
   checkCudaErrors(ncclGroupEnd());
 }
 
-void HetuGPUTable::all2allExchangeQuery() {
+void HetuTable::all2allExchangeQuery() {
   size_t snd_offset = 0, rcvd_offset = 0;
   checkCudaErrors(ncclGroupStart());
   for (int i = 0; i < nrank_; i++) {
@@ -61,7 +61,7 @@ void HetuGPUTable::all2allExchangeQuery() {
   INFO("Total gradient update receive/push = ", rcvd_offset, "/", snd_offset);
 }
 
-void HetuGPUTable::all2allReturnOutdated() {
+void HetuTable::all2allReturnOutdated() {
   checkCudaErrors(ncclGroupStart());
   size_t snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
@@ -75,7 +75,7 @@ void HetuGPUTable::all2allReturnOutdated() {
   checkCudaErrors(ncclGroupEnd());
 }
 
-void HetuGPUTable::all2allReturnValue() {
+void HetuTable::all2allReturnValue() {
   checkCudaErrors(ncclGroupStart());
   size_t snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {

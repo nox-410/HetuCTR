@@ -5,7 +5,7 @@
 
 using namespace hetuCTR;
 
-static std::unique_ptr<HetuGPUTable> makeHetuGPUTable(
+static std::unique_ptr<HetuTable> makeHetuTable(
   const int rank,
   const int nrank,
   const int device_id,
@@ -22,7 +22,7 @@ static std::unique_ptr<HetuGPUTable> makeHetuGPUTable(
 {
   SArray<worker_t> root_id_arr_shared(root_id_arr.mutable_data(), root_id_arr.size());
   SArray<index_t> storage_id_arr_shared(storage_id_arr.mutable_data(), storage_id_arr.size());
-  return std::make_unique<HetuGPUTable>(
+  return std::make_unique<HetuTable>(
     rank, nrank, device_id,
     ip, port,
     embedding_length, embedding_width,
@@ -47,17 +47,17 @@ PYBIND11_MODULE(hetuCTR, m) {
   py::class_<Initializer, std::unique_ptr<Initializer>>(m, "Initializer", py::module_local())
     .def(py::init(&makeInitializer));
 
-  py::class_<HetuGPUTable, std::unique_ptr<HetuGPUTable>>(m, "HetuGPUTable", py::module_local())
-    .def(py::init(&makeHetuGPUTable),
+  py::class_<HetuTable, std::unique_ptr<HetuTable>>(m, "HetuTable", py::module_local())
+    .def(py::init(&makeHetuTable),
       py::arg("rank"), py::arg("nrank"), py::arg("device_id"),
       py::arg("ip"), py::arg("port"),
       py::arg("length"), py::arg("width"),
       py::arg("pull_bound"), py::arg("push_bound"),
       py::arg("root_arr"), py::arg("storage_arr"),
       py::arg("init"), py::arg("verbose"))
-    .def("preprocess", &HetuGPUTable::preprocess)
-    .def("push_pull", &HetuGPUTable::pushPull)
-    .def("__repr__", &HetuGPUTable::debugString)
-    .def("debug",  &HetuGPUTable::debugStringFull);
+    .def("preprocess", &HetuTable::preprocess)
+    .def("push_pull", &HetuTable::pushPull)
+    .def("__repr__", &HetuTable::debugString)
+    .def("debug",  &HetuTable::debugStringFull);
 
 } // PYBIND11_MODULE

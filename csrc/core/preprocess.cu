@@ -8,7 +8,7 @@
 namespace hetuCTR {
 
 // This computes keys as <root_id, embedding_id>
-__global__ void generate_sort_kv_kernel(HetuGPUTable *tbl) {
+__global__ void generate_sort_kv_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.batch_size) {
     index_t embedding_idx = tbl->cur_batch_.d_idx[id];
@@ -31,7 +31,7 @@ __global__ void block_cvt_offset_to_shape_kernel(size_t *dst) {
   dst[id] = val_nxt - val;
 }
 
-__global__ void write_sort_result_kernel(HetuGPUTable *tbl) {
+__global__ void write_sort_result_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.batch_size) {
     index_t arg = tbl->cur_batch_.d_sorted_arg[id];
@@ -42,7 +42,7 @@ __global__ void write_sort_result_kernel(HetuGPUTable *tbl) {
 
 // This will compute cur_batch_.d_idx_map
 // cur_batch_.d_root cur_batch_.u_shape
-__global__ void preprocess_batch_data_kernel(HetuGPUTable *tbl) {
+__global__ void preprocess_batch_data_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t n = tbl->cur_batch_.unique_size;
   if (id < n) {
@@ -77,7 +77,7 @@ __global__ void preprocess_batch_data_kernel(HetuGPUTable *tbl) {
   }
 }
 
-void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
+void HetuTable::preprocessIndex(index_t *data, size_t batch_size) {
   if (batch_size == 0)
     checkCudaErrors(cudaMemsetAsync(
       cur_batch_.u_shape, 0, sizeof(size_t) * (nrank_ + 1), stream_main_));
@@ -147,7 +147,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
 // 2. update d_version_ (stored and root=self)
 // 3. update d_updates_ (stored and root!=self)
 //
-__global__ void decide_update_kernel(HetuGPUTable *tbl) {
+__global__ void decide_update_kernel(HetuTable *tbl) {
   const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->prev_batch_.unique_size) {
     version_t update_new = tbl->prev_batch_.d_run_length[id + 1] - tbl->prev_batch_.d_run_length[id];
@@ -168,7 +168,7 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
   }
 }
 
-void HetuGPUTable::preprocessGradient() {
+void HetuTable::preprocessGradient() {
   checkCudaErrors(cudaMemsetAsync(prev_batch_.u_shape, 0, nrank_ * sizeof(size_t), stream_main_));
   size_t num_unique = prev_batch_.unique_size;
   decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(d_this);

@@ -4,7 +4,7 @@
 
 using namespace hetuCTR;
 
-void HetuGPUTable::pushPull(unsigned long grad, unsigned long dst) {
+void HetuTable::pushPull(unsigned long grad, unsigned long dst) {
   generateGradient((embed_t*)grad);
 
   generateQuery();
@@ -19,7 +19,7 @@ void HetuGPUTable::pushPull(unsigned long grad, unsigned long dst) {
   return;
 }
 
-void HetuGPUTable::preprocess(unsigned long data_ptr, size_t batch_size) {
+void HetuTable::preprocess(unsigned long data_ptr, size_t batch_size) {
   std::swap(cur_batch_, prev_batch_);
   if (batch_size > batch_size_reserved_) {
     allocateAuxillaryMemory(batch_size);
@@ -32,7 +32,7 @@ void HetuGPUTable::preprocess(unsigned long data_ptr, size_t batch_size) {
   cur_batch_.batch_size = batch_size;
 
   checkCudaErrors(cudaMemcpyAsync(
-    d_this, this, sizeof(HetuGPUTable), cudaMemcpyHostToDevice, stream_main_));
+    d_this, this, sizeof(HetuTable), cudaMemcpyHostToDevice, stream_main_));
 
   preprocessIndex((index_t *)(data_ptr), batch_size);
 

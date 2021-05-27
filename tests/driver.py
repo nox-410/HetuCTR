@@ -20,7 +20,7 @@ def worker(rank):
     grad = torch.zeros([batch_size, width]).cuda()
     init = hetuCTR.Initializer(hetuCTR.InitType.Normal, 0 , 1)
     storage_arr = np.where(root_arr == rank)[0]
-    table = hetuCTR.HetuGPUTable(
+    table = hetuCTR.HetuTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,

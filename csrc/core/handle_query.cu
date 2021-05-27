@@ -4,7 +4,7 @@
 
 namespace hetuCTR {
 
-__global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
+__global__ void computeReturnOutdated(HetuTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
     version_t local_version = tbl->d_query_version_[1][id];
@@ -21,7 +21,7 @@ __global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
   }
 }
 
-__global__ void write_return_value_kernel(HetuGPUTable *tbl) {
+__global__ void write_return_value_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t len = *(tbl->d_shape_);
   if (id < len) {
@@ -40,7 +40,7 @@ __global__ void write_return_value_kernel(HetuGPUTable *tbl) {
   }
 }
 
-void HetuGPUTable::handleQuery() {
+void HetuTable::handleQuery() {
   INFO(all2all_received_, " received embedding index to handle.");
   computeReturnOutdated<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
 
@@ -72,7 +72,7 @@ void HetuGPUTable::handleQuery() {
   all2allReturnValue();
 }
 
-__global__ void table_update_remote_kernel(HetuGPUTable *tbl, size_t start, size_t len) {
+__global__ void table_update_remote_kernel(HetuTable *tbl, size_t start, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
     size_t width = tbl->kEmbeddingWidth;
@@ -90,7 +90,7 @@ __global__ void table_update_remote_kernel(HetuGPUTable *tbl, size_t start, size
   }
 }
 
-void HetuGPUTable::handleGradient() {
+void HetuTable::handleGradient() {
   size_t offset = 0;
   for (int i = 0 ; i < nrank_; i++) {
     size_t shape = prev_batch_.h_shape_exchanged[i];

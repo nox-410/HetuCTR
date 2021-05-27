@@ -5,7 +5,7 @@
 
 namespace hetuCTR {
 
-__global__ void writeback_update_kernel(HetuGPUTable *tbl, size_t len) {
+__global__ void writeback_update_kernel(HetuTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
     index_t embedding_idx = tbl->d_query_idx_[1][id];
@@ -20,7 +20,7 @@ __global__ void writeback_update_kernel(HetuGPUTable *tbl, size_t len) {
   }
 }
 
-__global__ void writeback_kernel(HetuGPUTable *tbl, embed_t *dst) {
+__global__ void writeback_kernel(HetuTable *tbl, embed_t *dst) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t len = tbl->cur_batch_.batch_size;
   if (id < len) {
@@ -39,7 +39,7 @@ __global__ void writeback_kernel(HetuGPUTable *tbl, embed_t *dst) {
   }
 }
 
-void HetuGPUTable::writeBack(embed_t *dst) {
+void HetuTable::writeBack(embed_t *dst) {
   // Compute the prefix sum for return_outdated
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
     d_return_outdated_[1], d_return_outdated_[0], cur_batch_.unique_size, stream_main_));

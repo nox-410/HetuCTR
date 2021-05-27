@@ -18,7 +18,7 @@ namespace hetuCTR {
  * @brief Distributed GPU Table for embedding-based training
  *
  */
-class HetuGPUTable : public pinned {
+class HetuTable : public pinned {
 public:
   const int rank_;
   const int nrank_;
@@ -54,7 +54,7 @@ public:
   size_t * d_shape_ = nullptr;
 
   // a pointer points to self that can be used in device
-  HetuGPUTable *d_this;
+  HetuTable *d_this;
 
   // query buffer, dual buffer for send and receive
   version_t * d_query_version_[2] = {};
@@ -98,13 +98,13 @@ public:
   template<class ...Args>
   inline void INFO(Args ...args) {
     if (verbose_ >= 1) {
-      std::cout << "HetuGPUTable rank " << rank_ << ": ";
+      std::cout << "HetuTable rank " << rank_ << ": ";
       std::initializer_list<int>({__printarg(args)...});
       std::cout << std::endl;
     }
   }
 
-  HetuGPUTable(
+  HetuTable(
     const int rank,
     const int nrank,
     const int device_id,
@@ -119,8 +119,8 @@ public:
     const Initializer &init,
     const int verbose
   );
-  HetuGPUTable(const HetuGPUTable &) = delete;
-  HetuGPUTable& operator=(const HetuGPUTable&) = delete;
+  HetuTable(const HetuTable &) = delete;
+  HetuTable& operator=(const HetuTable&) = delete;
   /**
    * @brief preprocess next batch index
    *
@@ -138,7 +138,7 @@ public:
   void pushPull(unsigned long grad, unsigned long dst);
   std::string debugString();
   std::string debugStringFull();
-  ~HetuGPUTable();
+  ~HetuTable();
 };
 
 } // namespace hetuCTR

@@ -2,18 +2,18 @@
 
 using namespace hetuCTR;
 
-std::string HetuGPUTable::debugString() {
+std::string HetuTable::debugString() {
   char buffer[1024];
-  sprintf(buffer, "<HetuGPUTable root/store/all=%ld/%ld/%ld>",
+  sprintf(buffer, "<HetuTable root/store/all=%ld/%ld/%ld>",
     kStorageMax - kNonLocalStorageMax, kStorageMax, kEmbeddingIDMax);
   std::string str = buffer;
   return str;
 }
 
-std::string HetuGPUTable::debugStringFull() {
+std::string HetuTable::debugStringFull() {
   char buffer[1024];
   sprintf(buffer,
-"<HetuGPUTable root/store/all=%ld/%ld/%ld \
+"<HetuTable root/store/all=%ld/%ld/%ld \
 rank=%d nrank=%d device_id=%d \
 width=%ld push/pull=%lld/%lld>",
     kStorageMax - kNonLocalStorageMax, kStorageMax, kEmbeddingIDMax,
