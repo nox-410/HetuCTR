@@ -1,4 +1,3 @@
-#include "preprocess.h"
 #include "hetu_gpu_table.h"
 
 #include <cmath>
@@ -7,42 +6,6 @@
 #include "common/helper_cuda.h"
 
 namespace hetu {
-
-void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank) {
-  assert(batch_size > 0);
-  pdata.batch_size = 0;
-  pdata.allocate_size = batch_size;
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_idx, sizeof(index_t) * batch_size));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_unique_idx, sizeof(index_t) * batch_size));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_idx_map, sizeof(index_t) * batch_size));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_offset, sizeof(index_t) * batch_size));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_root, sizeof(worker_t) * batch_size));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_run_length, sizeof(index_t) * (batch_size + 1)));
-  checkCudaErrors(cudaMalloc(
-    &pdata.d_sorted_arg, sizeof(index_t) * batch_size));
-  checkCudaErrors(cudaMallocManaged(
-    &pdata.u_shape, sizeof(size_t) * (nrank + 1)));
-  checkCudaErrors(cudaMallocManaged(
-    &pdata.u_shape_exchanged, sizeof(size_t) * (nrank + 1)));
-}
-
-void freePreprocessData(PreprocessData &pdata) {
-  checkCudaErrors(cudaFree(pdata.d_idx));
-  checkCudaErrors(cudaFree(pdata.d_unique_idx));
-  checkCudaErrors(cudaFree(pdata.d_idx_map));
-  checkCudaErrors(cudaFree(pdata.d_offset));
-  checkCudaErrors(cudaFree(pdata.d_root));
-  checkCudaErrors(cudaFree(pdata.d_run_length));
-  checkCudaErrors(cudaFree(pdata.d_sorted_arg));
-  checkCudaErrors(cudaFree(pdata.u_shape));
-  checkCudaErrors(cudaFree(pdata.u_shape_exchanged));
-}
 
 // This computes keys as <root_id, embedding_id>
 __global__ void generateSortkeys(HetuGPUTable *tbl) {
@@ -102,18 +65,7 @@ __global__ void computeBatch(HetuGPUTable *tbl) {
   }
 }
 
-void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
-  index_t *data = (index_t *)data_ptr;
-  std::swap(cur_batch_, prev_batch_);
-  if (batch_size > batch_size_reserved_) {
-    allocateAuxillaryMemory(batch_size);
-  }
-  if (batch_size > cur_batch_.allocate_size) {
-    INFO("ReAllocate cuda memory for batch ", cur_batch_.batch_size, "->" , batch_size);
-    freePreprocessData(cur_batch_);
-    createPreprocessData(cur_batch_, batch_size, nrank_);
-  }
-  cur_batch_.batch_size = batch_size;
+void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
   // Copy batch embedding index data into Device
   checkCudaErrors(cudaMemcpyAsync(
     cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyHostToDevice, stream_main_));
@@ -152,8 +104,6 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   // exchange shape with other workers
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
 
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
-
   // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
   // std::vector<index_t> h(batch_size + 1);
@@ -167,6 +117,45 @@ void HetuGPUTable::preprocessIndex(unsigned long data_ptr, size_t batch_size) {
   //   std::cout << cur_batch_.u_shape[i] << " ";
   // }
   // std::cout << std::endl;
+}
+
+// figure out all gradients to push
+// 1. compute d_need_update_ as 0 or 1
+// 2. update d_version_ (stored and root=self)
+// 3. update d_updates_ (stored and root!=self)
+//
+__global__ void decide_update_kernel(HetuGPUTable *tbl) {
+  const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < tbl->prev_batch_.unique_size) {
+    version_t update_new = tbl->prev_batch_.d_run_length[id + 1] - tbl->prev_batch_.d_run_length[id];
+    index_t offset = tbl->prev_batch_.d_offset[id];
+    if (tbl->prev_batch_.d_root[id] == tbl->rank_) {
+      tbl->d_need_update_[id] = 0;
+      tbl->d_version_[offset] += update_new;
+    } else if (offset == kInvalidIndex) {
+      tbl->d_need_update_[id] = 1;
+    } else {
+      // assert(offset < tbl->kNonLocalStorageMax);
+      version_t update_local = tbl->d_updates_[offset];
+      tbl->d_need_update_[id] = update_local + update_new <= tbl->push_bound_ ? 0 : 1;
+      tbl->d_updates_[offset] += update_new;
+    }
+    if (tbl->d_need_update_[id])
+      atomicAdd(&tbl->prev_batch_.u_shape[tbl->prev_batch_.d_root[id]], 1);
+  }
+}
+
+void HetuGPUTable::preprocessGradient() {
+  if (prev_batch_.batch_size == 0) return;
+  memset(prev_batch_.u_shape, 0 , nrank_ * sizeof(size_t));
+  size_t num_unique = prev_batch_.unique_size;
+  decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this);
+
+  // d_update_prefix_[i] stores which index maps to the gradient communication slot i
+  checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
+    d_need_update_, d_update_prefix_, num_unique, stream_main_));
+
+  all2allExchangeShape(prev_batch_.u_shape, prev_batch_.u_shape_exchanged);
 }
 
 } // namespace hetu

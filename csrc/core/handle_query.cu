@@ -4,23 +4,6 @@
 
 using namespace hetu;
 
-__global__ void LookUpVersion(HetuGPUTable *tbl) {
-  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < tbl->cur_batch_.unique_size) {
-    index_t idx = tbl->cur_batch_.d_offset[id];
-    if (idx >= 0) tbl->d_query_version_[0][id] = tbl->d_version_[idx];
-    else tbl->d_query_version_[0][id] = kInvalidVersion;
-  }
-}
-
-void HetuGPUTable::generateQuery() {
-  // generate local version for each embedding lookup
-  LookUpVersion<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(this);
-  // Copy index to query buffer
-  checkCudaErrors(cudaMemcpyAsync(
-    d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
-}
-
 __global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {

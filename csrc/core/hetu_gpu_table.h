@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.h"
-#include "preprocess.h"
+#include "preprocess_struct.h"
 #include "common/sarray.h"
 #include "common/logging.h"
 #include "utils/initializer.h"
@@ -79,6 +79,8 @@ public:
 
   void generateQuery();
   void generateGradient(embed_t *grad);
+  void preprocessGradient();
+  void preprocessIndex(index_t *data, size_t batch_size);
   void handleGradient();
   void handleQuery();
   void writeBack(embed_t *dst);
@@ -121,7 +123,7 @@ public:
    * @param data_ptr an address holding index
    * @param len the length of index array
    */
-  void preprocessIndex(unsigned long data_ptr, size_t batch_size);
+  void preprocess(unsigned long data_ptr, size_t batch_size);
 
   /**
    * @brief Update embedding Table with the gradients and then fetch embedding value to dst

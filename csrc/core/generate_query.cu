@@ -4,32 +4,6 @@
 
 using namespace hetu;
 
-// figure out all gradients to push
-// 1. compute d_need_update_ as 0 or 1
-// 2. update d_version_ (stored and root=self)
-// 3. update d_updates_ (stored and root!=self)
-//
-__global__ void decide_update_kernel(HetuGPUTable *tbl) {
-  const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < tbl->prev_batch_.unique_size) {
-    version_t update_new = tbl->prev_batch_.d_run_length[id + 1] - tbl->prev_batch_.d_run_length[id];
-    index_t offset = tbl->prev_batch_.d_offset[id];
-    if (tbl->prev_batch_.d_root[id] == tbl->rank_) {
-      tbl->d_need_update_[id] = 0;
-      tbl->d_version_[offset] += update_new;
-    } else if (offset == kInvalidIndex) {
-      tbl->d_need_update_[id] = 1;
-    } else {
-      // assert(offset < tbl->kNonLocalStorageMax);
-      version_t update_local = tbl->d_updates_[offset];
-      tbl->d_need_update_[id] = update_local + update_new <= tbl->push_bound_ ? 0 : 1;
-      tbl->d_updates_[offset] += update_new;
-    }
-    if (tbl->d_need_update_[id])
-      atomicAdd(&tbl->prev_batch_.u_shape[tbl->prev_batch_.d_root[id]], 1);
-  }
-}
-
 // aggregate all the gradients into storage
 __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
   const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -84,17 +58,9 @@ __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
 }
 
 void HetuGPUTable::generateGradient(embed_t *grad) {
-  memset(prev_batch_.u_shape, 0 , nrank_ * sizeof(size_t));
   size_t num_unique = prev_batch_.unique_size;
-  decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this);
-
-  // d_update_prefix_[i] stores which index maps to the gradient communication slot i
-  checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
-    d_need_update_, d_update_prefix_, num_unique, stream_main_));
 
   table_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this, grad);
-
-  all2allExchangeShape(prev_batch_.u_shape, prev_batch_.u_shape_exchanged);
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 
@@ -106,4 +72,21 @@ void HetuGPUTable::generateGradient(embed_t *grad) {
   // for (int i = 0 ; i < nrank_; i++)
   //   std::cout << prev_batch_.u_shape_exchanged[i] << " ";
   // std::cout << std::endl;
+}
+
+__global__ void LookUpVersion(HetuGPUTable *tbl) {
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < tbl->cur_batch_.unique_size) {
+    index_t idx = tbl->cur_batch_.d_offset[id];
+    if (idx >= 0) tbl->d_query_version_[0][id] = tbl->d_version_[idx];
+    else tbl->d_query_version_[0][id] = kInvalidVersion;
+  }
+}
+
+void HetuGPUTable::generateQuery() {
+  // generate local version for each embedding lookup
+  LookUpVersion<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(this);
+  // Copy index to query buffer
+  checkCudaErrors(cudaMemcpyAsync(
+    d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
 }
