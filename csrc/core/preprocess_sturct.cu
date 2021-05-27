@@ -9,6 +9,7 @@ namespace hetu{
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank) {
   assert(batch_size > 0);
   pdata.batch_size = 0;
+  pdata.unique_size = 0;
   pdata.allocate_size = batch_size;
   checkCudaErrors(cudaMalloc(
     &pdata.d_idx, sizeof(index_t) * batch_size));
@@ -24,10 +25,14 @@ void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank
     &pdata.d_run_length, sizeof(index_t) * (batch_size + 1)));
   checkCudaErrors(cudaMalloc(
     &pdata.d_sorted_arg, sizeof(index_t) * batch_size));
-  checkCudaErrors(cudaMallocManaged(
+  checkCudaErrors(cudaMalloc(
     &pdata.u_shape, sizeof(size_t) * (nrank + 1)));
-  checkCudaErrors(cudaMallocManaged(
+  checkCudaErrors(cudaMalloc(
     &pdata.u_shape_exchanged, sizeof(size_t) * (nrank + 1)));
+  checkCudaErrors(cudaMallocHost(
+    &pdata.h_shape, sizeof(size_t) * (nrank + 1)));
+  checkCudaErrors(cudaMallocHost(
+    &pdata.h_shape_exchanged, sizeof(size_t) * (nrank + 1)));
 }
 
 void freePreprocessData(PreprocessData &pdata) {
@@ -40,6 +45,8 @@ void freePreprocessData(PreprocessData &pdata) {
   checkCudaErrors(cudaFree(pdata.d_sorted_arg));
   checkCudaErrors(cudaFree(pdata.u_shape));
   checkCudaErrors(cudaFree(pdata.u_shape_exchanged));
+  checkCudaErrors(cudaFreeHost(pdata.h_shape));
+  checkCudaErrors(cudaFreeHost(pdata.h_shape_exchanged));
 }
 
 } // namespace hetu

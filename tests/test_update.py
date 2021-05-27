@@ -32,7 +32,7 @@ def test_one(rank):
     for i in range(50):
         for id in embed_id:
             update_store[id]+=1.0
-        embed_id = np.random.randint(int(np.random.randint(batch_size)), size=batch_size, dtype=np.int64)
+        embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
         table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
         table.push_pull(grad.data_ptr(), dest.data_ptr())
 
@@ -61,7 +61,7 @@ def test_two(rank):
         grad = grad_cpu.cuda()
         for grad_id, id in enumerate(embed_id):
             update_store[id]+=grad_cpu[grad_id, 0]
-        embed_id = np.random.randint(int(np.random.randint(batch_size)), size=batch_size, dtype=np.int64)
+        embed_id = np.random.randint(length, size=batch_size, dtype=np.int64)
         table.preprocess(embed_id.ctypes.data, embed_id.shape[0])
         table.push_pull(grad.data_ptr(), dest.data_ptr())
 

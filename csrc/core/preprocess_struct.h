@@ -17,6 +17,10 @@ struct PreprocessData {
   index_t *d_offset = nullptr;
   size_t *u_shape = nullptr;
   size_t *u_shape_exchanged = nullptr;
+  // host copy of d_shape
+  size_t *h_shape = nullptr;
+  // host copy of d_shape_exchanged
+  size_t *h_shape_exchanged = nullptr;
 };
 
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank);

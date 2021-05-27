@@ -115,6 +115,11 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
   // exchange shape with other workers
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
 
+  checkCudaErrors(cudaMemcpyAsync(cur_batch_.h_shape, cur_batch_.u_shape,
+    sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
+  checkCudaErrors(cudaMemcpyAsync(cur_batch_.h_shape_exchanged, cur_batch_.u_shape_exchanged,
+    sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
+
   // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
 
   // std::vector<index_t> h(batch_size + 1);
@@ -157,7 +162,6 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
 }
 
 void HetuGPUTable::preprocessGradient() {
-  if (prev_batch_.batch_size == 0) return;
   checkCudaErrors(cudaMemsetAsync(prev_batch_.u_shape, 0, nrank_ * sizeof(size_t), stream_main_));
   size_t num_unique = prev_batch_.unique_size;
   decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this);
@@ -167,6 +171,11 @@ void HetuGPUTable::preprocessGradient() {
     d_need_update_, d_update_prefix_, num_unique, stream_main_));
 
   all2allExchangeShape(prev_batch_.u_shape, prev_batch_.u_shape_exchanged);
+
+  checkCudaErrors(cudaMemcpyAsync(prev_batch_.h_shape, prev_batch_.u_shape,
+    sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
+  checkCudaErrors(cudaMemcpyAsync(prev_batch_.h_shape_exchanged, prev_batch_.u_shape_exchanged,
+    sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
 }
 
 } // namespace hetu

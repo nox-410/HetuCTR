@@ -53,7 +53,12 @@ void HetuGPUTable::handleQuery() {
     d_return_outdated_[0], cur_batch_.u_shape, nrank_,
     cur_batch_.u_shape_exchanged, cur_batch_.u_shape_exchanged + 1, stream_main_));
 
+  // exchange return value shape and copy them to host
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
+  checkCudaErrors(cudaMemcpyAsync(cur_batch_.h_shape, cur_batch_.u_shape,
+    sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
+  checkCudaErrors(cudaMemcpyAsync(cur_batch_.h_shape_exchanged, cur_batch_.u_shape_exchanged,
+    sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
 
   // select index that requires update into d_update_prefix_
   // total number stored in d_shape_
@@ -88,8 +93,8 @@ __global__ void table_update_remote_kernel(HetuGPUTable *tbl, size_t start, size
 void HetuGPUTable::handleGradient() {
   size_t offset = 0;
   for (int i = 0 ; i < nrank_; i++) {
-    size_t shape = prev_batch_.u_shape_exchanged[i];
-    table_update_remote_kernel<<<shape, DIM_BLOCK, 0, stream_main_>>>(this, offset, shape);
+    size_t shape = prev_batch_.h_shape_exchanged[i];
+    table_update_remote_kernel<<<DIM_GRID(shape), DIM_BLOCK, 0, stream_main_>>>(this, offset, shape);
     offset += shape;
   }
 }
