@@ -18,7 +18,7 @@ find_package(CUDAToolkit REQUIRED)
 enable_language(CUDA)
 
 set(NCCL_ROOT $ENV{CONDA_PREFIX})
-find_package(NCCL REQUIRED)
+find_package(NCCL 2.8 REQUIRED)
 
 include(FetchContent)
 

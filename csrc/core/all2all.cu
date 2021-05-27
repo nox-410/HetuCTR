@@ -16,20 +16,13 @@ void HetuGPUTable::all2allExchangeShape(const size_t *shape, size_t *shape_out) 
 }
 
 void HetuGPUTable::all2allExchangeQuery() {
-  checkCudaErrors(ncclGroupStart());
   size_t snd_offset = 0, rcvd_offset = 0;
+  checkCudaErrors(ncclGroupStart());
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
       d_query_idx_[0] + snd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_query_idx_[1] + rcvd_offset, cur_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
-    snd_offset += cur_batch_.u_shape[i];
-    rcvd_offset += cur_batch_.u_shape_exchanged[i];
-  }
-  // checkCudaErrors(ncclGroupEnd());
-  // checkCudaErrors(ncclGroupStart());
-  snd_offset = 0, rcvd_offset = 0;
-  for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
       d_query_version_[0] + snd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
@@ -37,41 +30,27 @@ void HetuGPUTable::all2allExchangeQuery() {
     snd_offset += cur_batch_.u_shape[i];
     rcvd_offset += cur_batch_.u_shape_exchanged[i];
   }
+  checkCudaErrors(ncclGroupEnd());
   all2all_received_ = rcvd_offset;
-  // checkCudaErrors(ncclGroupEnd());
 
   // gradient part, using prev_batch
-  // checkCudaErrors(ncclGroupStart());
+  checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
       d_query_gradient_idx_[0] + snd_offset, prev_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_query_gradient_idx_[1] + rcvd_offset, prev_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
-    snd_offset += prev_batch_.u_shape[i];
-    rcvd_offset += prev_batch_.u_shape_exchanged[i];
-  }
-  // checkCudaErrors(ncclGroupEnd());
-  // checkCudaErrors(ncclGroupStart());
-  snd_offset = 0, rcvd_offset = 0;
-  for (int i = 0; i < nrank_; i++) {
-    checkCudaErrors(ncclSend(
-      d_query_updates_[0] + snd_offset, prev_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
-    checkCudaErrors(ncclRecv(
-      d_query_updates_[1] + rcvd_offset, prev_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
-    snd_offset += prev_batch_.u_shape[i];
-    rcvd_offset += prev_batch_.u_shape_exchanged[i];
-  }
-  // checkCudaErrors(ncclGroupEnd());
-  // checkCudaErrors(ncclGroupStart());
-  snd_offset = 0, rcvd_offset = 0;
-  for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
       d_query_val_[0] + snd_offset * kEmbeddingWidth, prev_batch_.u_shape[i] * kEmbeddingWidth,
       ncclFloat32, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_query_val_[1] + rcvd_offset * kEmbeddingWidth, prev_batch_.u_shape_exchanged[i] * kEmbeddingWidth,
       ncclFloat32, i, communicator_, stream_main_));
+    checkCudaErrors(ncclSend(
+      d_query_updates_[0] + snd_offset, prev_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
+    checkCudaErrors(ncclRecv(
+      d_query_updates_[1] + rcvd_offset, prev_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
     snd_offset += prev_batch_.u_shape[i];
     rcvd_offset += prev_batch_.u_shape_exchanged[i];
   }
@@ -101,13 +80,6 @@ void HetuGPUTable::all2allReturnValue() {
       d_return_version_[0] + snd_offset, cur_batch_.u_shape[i], ncclInt64, i, communicator_, stream_main_));
     checkCudaErrors(ncclRecv(
       d_return_version_[1] + rcvd_offset, cur_batch_.u_shape_exchanged[i], ncclInt64, i, communicator_, stream_main_));
-    snd_offset += cur_batch_.u_shape[i];
-    rcvd_offset += cur_batch_.u_shape_exchanged[i];
-  }
-  // checkCudaErrors(ncclGroupEnd());
-  // checkCudaErrors(ncclGroupStart());
-  snd_offset = 0, rcvd_offset = 0;
-  for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(
       d_return_val_[0] + snd_offset * kEmbeddingWidth, cur_batch_.u_shape[i] * kEmbeddingWidth,
       ncclFloat32, i, communicator_, stream_main_));

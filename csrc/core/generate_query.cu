@@ -61,17 +61,6 @@ void HetuGPUTable::generateGradient(embed_t *grad) {
   size_t num_unique = prev_batch_.unique_size;
 
   table_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this, grad);
-
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
-
-  // std::cout << rank_ << " ";
-  // for (int i = 0 ; i < nrank_; i++)
-  //   std::cout << prev_batch_.u_shape[i] << " ";
-  // std::cout << std::endl;
-  // std::cout << rank_ << " ";
-  // for (int i = 0 ; i < nrank_; i++)
-  //   std::cout << prev_batch_.u_shape_exchanged[i] << " ";
-  // std::cout << std::endl;
 }
 
 __global__ void LookUpVersion(HetuGPUTable *tbl) {
