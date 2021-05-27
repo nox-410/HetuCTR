@@ -28,7 +28,7 @@ const version_t kInvalidVersion = std::numeric_limits<version_t>::min();
 typedef unsigned char worker_t;
 
 /// Cuda block dim
-const size_t DIM_BLOCK = 256;
+const size_t DIM_BLOCK = 128;
 
 #define DIM_GRID(x) ( ((size_t)x + DIM_BLOCK - 1) / DIM_BLOCK )
 
