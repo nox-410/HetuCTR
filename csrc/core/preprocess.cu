@@ -78,6 +78,10 @@ __global__ void computeBatch(HetuGPUTable *tbl) {
 }
 
 void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
+  if (batch_size == 0)
+    checkCudaErrors(cudaMemsetAsync(
+      cur_batch_.u_shape, 0, sizeof(size_t) * (nrank_ + 1), stream_main_));
+
   // Copy batch embedding index data into Device
   checkCudaErrors(cudaMemcpyAsync(
     cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyHostToDevice, stream_main_));
