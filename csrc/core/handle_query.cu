@@ -42,7 +42,7 @@ __global__ void writeReturnValue(HetuGPUTable *tbl) {
 
 void HetuGPUTable::handleQuery() {
   INFO(all2all_received_, " received embedding index to handle.");
-  computeReturnOutdated<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(this, all2all_received_);
+  computeReturnOutdated<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
 
   all2allReturnOutdated();
 
@@ -65,7 +65,7 @@ void HetuGPUTable::handleQuery() {
   checkCudaErrors(cub::DeviceSelect::Flagged(d_temp_, temp_bytes_,
     d_query_idx_[1], d_return_outdated_[0], d_update_prefix_, d_shape_, all2all_received_, stream_main_));
 
-  writeReturnValue<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(this);
+  writeReturnValue<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 
@@ -94,7 +94,7 @@ void HetuGPUTable::handleGradient() {
   size_t offset = 0;
   for (int i = 0 ; i < nrank_; i++) {
     size_t shape = prev_batch_.h_shape_exchanged[i];
-    table_update_remote_kernel<<<DIM_GRID(shape), DIM_BLOCK, 0, stream_main_>>>(this, offset, shape);
+    table_update_remote_kernel<<<DIM_GRID(shape), DIM_BLOCK, 0, stream_main_>>>(d_this, offset, shape);
     offset += shape;
   }
 }

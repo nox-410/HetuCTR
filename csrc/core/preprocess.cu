@@ -83,7 +83,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
     cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyHostToDevice, stream_main_));
 
   // use unused memory here to store temp sort keys
-  generateSortkeys<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
+  generateSortkeys<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
   // we don't need to sort all the bits when using radix sort.
   // using end_bit smaller than 64 can yield corresponding performance improvement
   int end_bit = std::ceil(std::log2(kEmbeddingIDMax * nrank_));
@@ -93,12 +93,15 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
     batch_size, 0, end_bit, stream_main_));
 
   // After argsort write value to d_offset (temp, modify in next step)
-  writeSortedIndex<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
+  writeSortedIndex<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   // perform unique operation, store total number of unique embedding items;
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
     d_temp_, temp_bytes_, cur_batch_.d_offset, cur_batch_.d_unique_idx, cur_batch_.d_run_length,
-    &cur_batch_.unique_size, batch_size, stream_main_));
+    &(d_this->cur_batch_.unique_size), batch_size, stream_main_));
+
+  checkCudaErrors(cudaMemcpyAsync(&cur_batch_.unique_size, &(d_this->cur_batch_.unique_size),
+    sizeof(size_t), cudaMemcpyDeviceToHost, stream_main_));
 
   // Store the predix sum of length, this will be used in gradient reduction
   // although we should compute [0, unique_size), but we don't want to sync here
@@ -106,7 +109,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
     cur_batch_.d_run_length, cur_batch_.d_run_length, cur_batch_.batch_size + 1, stream_main_));
 
   // Computes other preprocess data
-  computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
+  computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   // convert offset to shape
   block_cvt_offset_to_shape_kernel<<<1, nrank_ + 1,
@@ -164,7 +167,7 @@ __global__ void decide_update_kernel(HetuGPUTable *tbl) {
 void HetuGPUTable::preprocessGradient() {
   checkCudaErrors(cudaMemsetAsync(prev_batch_.u_shape, 0, nrank_ * sizeof(size_t), stream_main_));
   size_t num_unique = prev_batch_.unique_size;
-  decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this);
+  decide_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   // d_update_prefix_[i] stores which index maps to the gradient communication slot i
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,

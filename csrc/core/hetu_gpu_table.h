@@ -9,7 +9,7 @@
 #include <cuda_runtime.h>
 #include <nccl.h>
 
-#include "cudf/managed.cuh"
+#include "utils/pinned.cuh"
 #include "cudf/concurrent_unordered_map.cuh"
 
 namespace hetu {
@@ -18,7 +18,7 @@ namespace hetu {
  * @brief Distributed GPU Table for embedding-based training
  *
  */
-class HetuGPUTable : public managed {
+class HetuGPUTable : public pinned {
 public:
   const int rank_;
   const int nrank_;
@@ -52,6 +52,9 @@ public:
   index_t * d_need_update_ = nullptr;
   index_t * d_update_prefix_ = nullptr;
   size_t * d_shape_ = nullptr;
+
+  // a pointer points to self that can be used in device
+  HetuGPUTable *d_this;
 
   // query buffer, dual buffer for send and receive
   version_t * d_query_version_[2] = {};

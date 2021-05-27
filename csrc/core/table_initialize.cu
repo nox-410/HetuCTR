@@ -151,6 +151,7 @@ HetuGPUTable::HetuGPUTable(
   createPreprocessData(cur_batch_, batch_size_reserved_, nrank_);
   createPreprocessData(prev_batch_, batch_size_reserved_, nrank_);
   allocateAuxillaryMemory(batch_size_reserved_);
+  checkCudaErrors(cudaMalloc(&d_this, sizeof(HetuGPUTable)));
 }
 
 void HetuGPUTable::allocateAuxillaryMemory(size_t batch_size) {
@@ -227,6 +228,7 @@ HetuGPUTable::~HetuGPUTable() {
   checkCudaErrors(cudaFree(d_gradient_));
   checkCudaErrors(cudaFree(d_updates_));
   checkCudaErrors(cudaFree(d_root_));
+  checkCudaErrors(cudaFree(d_this));
   freePreprocessData(cur_batch_);
   freePreprocessData(prev_batch_);
   freeAuxillaryMemory();

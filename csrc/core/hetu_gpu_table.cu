@@ -31,6 +31,9 @@ void HetuGPUTable::preprocess(unsigned long data_ptr, size_t batch_size) {
   }
   cur_batch_.batch_size = batch_size;
 
+  checkCudaErrors(cudaMemcpyAsync(
+    d_this, this, sizeof(HetuGPUTable), cudaMemcpyHostToDevice, stream_main_));
+
   preprocessIndex((index_t *)(data_ptr), batch_size);
 
   preprocessGradient();

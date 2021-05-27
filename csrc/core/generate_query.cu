@@ -60,7 +60,7 @@ __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
 void HetuGPUTable::generateGradient(embed_t *grad) {
   size_t num_unique = prev_batch_.unique_size;
 
-  table_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(this, grad);
+  table_update_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(d_this, grad);
 }
 
 __global__ void LookUpVersion(HetuGPUTable *tbl) {
@@ -74,7 +74,7 @@ __global__ void LookUpVersion(HetuGPUTable *tbl) {
 
 void HetuGPUTable::generateQuery() {
   // generate local version for each embedding lookup
-  LookUpVersion<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(this);
+  LookUpVersion<<<DIM_GRID(cur_batch_.unique_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
   // Copy index to query buffer
   checkCudaErrors(cudaMemcpyAsync(
     d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));

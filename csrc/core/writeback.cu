@@ -50,7 +50,7 @@ void HetuGPUTable::writeBack(embed_t *dst) {
     d_shape_, cur_batch_.unique_size, stream_main_));
 
   // Update received value into local storage
-  writeBackUpdateLocalKernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(this, all2all_received_);
-  writeBackTargetKernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this, dst);
+  writeBackUpdateLocalKernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
+  writeBackTargetKernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
