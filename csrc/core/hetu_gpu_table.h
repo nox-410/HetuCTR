@@ -12,7 +12,7 @@
 #include "utils/pinned.cuh"
 #include "cudf/concurrent_unordered_map.cuh"
 
-namespace hetu {
+namespace hetuCTR {
 
 /**
  * @brief Distributed GPU Table for embedding-based training
@@ -141,4 +141,4 @@ public:
   ~HetuGPUTable();
 };
 
-} // namespace hetu
+} // namespace hetuCTR

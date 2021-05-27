@@ -1,4 +1,4 @@
-import hetu_gpu_table
+import hetuCTR
 import numpy as np
 import multiprocessing
 
@@ -17,9 +17,9 @@ root_arr = np.random.randint(nrank, size=length)
 def test_one(rank):
     dest = torch.zeros([batch_size, width]).cuda()
     grad = torch.ones([batch_size, width]).cuda()
-    init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Zero, 0 , 0)
+    init = hetuCTR.Initializer(hetuCTR.InitType.Zero, 0 , 0)
     storage_arr = np.where(root_arr <= rank)[0]
-    table = hetu_gpu_table.HetuGPUTable(
+    table = hetuCTR.HetuGPUTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,
@@ -44,9 +44,9 @@ def test_one(rank):
 
 def test_two(rank):
     dest = torch.zeros([batch_size, width]).cuda()
-    init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Zero, 0 , 0)
+    init = hetuCTR.Initializer(hetuCTR.InitType.Zero, 0 , 0)
     storage_arr = np.where(root_arr <= rank)[0]
-    table = hetu_gpu_table.HetuGPUTable(
+    table = hetuCTR.HetuGPUTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,

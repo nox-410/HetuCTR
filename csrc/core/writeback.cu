@@ -3,7 +3,7 @@
 
 #include <cub/cub.cuh>
 
-using namespace hetu;
+namespace hetuCTR {
 
 __global__ void writeBackUpdateLocalKernel(HetuGPUTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -54,3 +54,5 @@ void HetuGPUTable::writeBack(embed_t *dst) {
   writeBackTargetKernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
+
+} // namespace hetuCTR

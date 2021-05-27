@@ -2,7 +2,7 @@
 
 #include "common/helper_cuda.h"
 
-using namespace hetu;
+using namespace hetuCTR;
 
 void HetuGPUTable::pushPull(unsigned long grad, unsigned long dst) {
   generateGradient((embed_t*)grad);

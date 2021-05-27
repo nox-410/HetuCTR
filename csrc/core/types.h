@@ -6,7 +6,7 @@ extern "C" {
 #include <sys/types.h>
 }
 
-namespace hetu {
+namespace hetuCTR {
 
 /// types of the embedding item
 typedef float embed_t;
@@ -32,4 +32,4 @@ const size_t DIM_BLOCK = 256;
 
 #define DIM_GRID(x) ( ((size_t)x + DIM_BLOCK - 1) / DIM_BLOCK )
 
-} // namespace hetu
+} // namespace hetuCTR

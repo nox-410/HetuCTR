@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 #include "common/helper_cuda.h"
 
-namespace hetu{
+namespace hetuCTR{
 
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank) {
   assert(batch_size > 0);
@@ -49,4 +49,4 @@ void freePreprocessData(PreprocessData &pdata) {
   checkCudaErrors(cudaFreeHost(pdata.h_shape_exchanged));
 }
 
-} // namespace hetu
+} // namespace hetuCTR

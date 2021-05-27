@@ -1,4 +1,4 @@
-import hetu_gpu_table
+import hetuCTR
 import numpy as np
 import multiprocessing
 import argparse
@@ -18,9 +18,9 @@ def worker(rank):
     torch.cuda.set_device(rank)
     dest = torch.zeros([batch_size, width]).cuda()
     grad = torch.zeros([batch_size, width]).cuda()
-    init = hetu_gpu_table.Initializer(hetu_gpu_table.InitType.Normal, 0 , 1)
+    init = hetuCTR.Initializer(hetuCTR.InitType.Normal, 0 , 1)
     storage_arr = np.where(root_arr == rank)[0]
-    table = hetu_gpu_table.HetuGPUTable(
+    table = hetuCTR.HetuGPUTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
         pull_bound = 0, push_bound = 0, init=init,
         length = length, width = width,

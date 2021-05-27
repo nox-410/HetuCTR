@@ -5,7 +5,7 @@
 #include <cub/cub.cuh>
 #include "common/helper_cuda.h"
 
-namespace hetu {
+namespace hetuCTR {
 
 // This computes keys as <root_id, embedding_id>
 __global__ void generateSortkeys(HetuGPUTable *tbl) {
@@ -181,4 +181,4 @@ void HetuGPUTable::preprocessGradient() {
     sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
 }
 
-} // namespace hetu
+} // namespace hetuCTR

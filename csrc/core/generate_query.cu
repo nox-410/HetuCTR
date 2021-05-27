@@ -2,7 +2,7 @@
 #include "common/helper_cuda.h"
 #include <cub/cub.cuh>
 
-using namespace hetu;
+namespace hetuCTR {
 
 // aggregate all the gradients into storage
 __global__ void table_update_kernel(HetuGPUTable *tbl, embed_t *grad) {
@@ -79,3 +79,5 @@ void HetuGPUTable::generateQuery() {
   checkCudaErrors(cudaMemcpyAsync(
     d_query_idx_[0], cur_batch_.d_unique_idx, cur_batch_.unique_size * sizeof(index_t), cudaMemcpyDeviceToDevice, stream_main_));
 }
+
+} // namespace hetuCTR

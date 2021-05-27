@@ -7,7 +7,7 @@
 
 namespace py = pybind11;
 
-namespace hetu {
+namespace hetuCTR {
 namespace bind {
 
 // snippet for converting std::vector
@@ -55,4 +55,4 @@ std::vector<T> a2v(py::array_t<T> &arr) {
   }                                                                   \
 }
 
-} //namespace hetu
+} //namespace hetuCTR

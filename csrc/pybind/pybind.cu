@@ -3,7 +3,7 @@
 #include "core/hetu_gpu_table.h"
 #include "utils/initializer.h"
 
-using namespace hetu;
+using namespace hetuCTR;
 
 static std::unique_ptr<HetuGPUTable> makeHetuGPUTable(
   const int rank,
@@ -35,8 +35,8 @@ static std::unique_ptr<Initializer> makeInitializer(InitType type, float param_a
   return std::make_unique<Initializer>(type, param_a, param_b);
 }
 
-PYBIND11_MODULE(hetu_gpu_table, m) {
-  m.doc() = "hetu GPU table C++/CUDA Implementation"; // module docstring
+PYBIND11_MODULE(hetuCTR, m) {
+  m.doc() = "hetuCTR C++/CUDA Implementation"; // module docstring
 
   py::enum_<InitType>(m, "InitType", py::module_local())
     .value("Zero", InitType::kZero)

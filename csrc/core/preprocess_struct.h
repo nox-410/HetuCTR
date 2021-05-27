@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace hetu {
+namespace hetuCTR {
 
 struct PreprocessData {
   size_t batch_size = 0;
@@ -27,4 +27,4 @@ void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank
 
 void freePreprocessData(PreprocessData &pdata);
 
-} // namespace hetu
+} // namespace hetuCTR

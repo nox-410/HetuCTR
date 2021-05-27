@@ -9,7 +9,7 @@
 
 #include <cub/cub.cuh>
 
-using namespace hetu;
+using namespace hetuCTR;
 
 void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
   checkCudaErrors(cudaSetDevice(device_id_));

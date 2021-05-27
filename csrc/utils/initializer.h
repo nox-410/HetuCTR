@@ -3,7 +3,7 @@
 #include <core/types.h>
 #include <utility>
 
-namespace hetu {
+namespace hetuCTR {
 
 enum class InitType {
   kZero,
@@ -35,5 +35,5 @@ struct Initializer {
  */
 void initialize(embed_t *data, size_t len, Initializer init, bool host=false, unsigned int seed=0);
 
-} // namespace hetu
+} // namespace hetuCTR
 

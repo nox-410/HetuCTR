@@ -5,7 +5,7 @@
 #include <zmq.h>
 #include <string>
 
-namespace hetu {
+namespace hetuCTR {
 
 /**
  * @brief A helper class for Initializing NCCL connection
@@ -44,4 +44,4 @@ public:
   ~TCPRendezvous();
 };
 
-} // namespace hetu
+} // namespace hetuCTR

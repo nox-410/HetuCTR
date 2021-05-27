@@ -1,7 +1,7 @@
 #include "hetu_gpu_table.h"
 #include "common/helper_cuda.h"
 
-using namespace hetu;
+namespace hetuCTR {
 
 void HetuGPUTable::all2allExchangeShape(const size_t *shape, size_t *shape_out) {
   assert(shape != shape_out);
@@ -34,7 +34,7 @@ void HetuGPUTable::all2allExchangeQuery() {
   all2all_received_ = rcvd_offset;
   // currently, we have to make sure each worker have the same batchsize
   // under such assumption, the received number won't exceed this value
-  assert(all2all_received_ < batch_size_reserved_ * nrank_);
+  assert(all2all_received_ <= batch_size_reserved_ * nrank_);
 
   // gradient part, using prev_batch
   checkCudaErrors(ncclGroupStart());
@@ -96,3 +96,5 @@ void HetuGPUTable::all2allReturnValue() {
   all2all_received_ = rcvd_offset;
   INFO("Total embedding fetching serve/query = ", rcvd_offset, "/", snd_offset);
 }
+
+} // namespace hetuCTR

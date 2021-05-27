@@ -1,6 +1,6 @@
 #include "rendezvous.h"
 
-using namespace hetu;
+using namespace hetuCTR;
 
 TCPRendezvous::TCPRendezvous(int rank, int nrank, std::string ip, int port)
 {

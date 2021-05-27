@@ -2,7 +2,7 @@
 #include "common/helper_cuda.h"
 #include <cub/cub.cuh>
 
-using namespace hetu;
+namespace hetuCTR {
 
 __global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -98,3 +98,5 @@ void HetuGPUTable::handleGradient() {
     offset += shape;
   }
 }
+
+} // namespace hetuCTR

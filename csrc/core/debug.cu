@@ -1,6 +1,6 @@
 #include "hetu_gpu_table.h"
 
-using namespace hetu;
+using namespace hetuCTR;
 
 std::string HetuGPUTable::debugString() {
   char buffer[1024];

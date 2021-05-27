@@ -6,7 +6,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/device_ptr.h>
 
-namespace hetu {
+namespace hetuCTR {
 
 struct _Uniform {
   const float a, b;
@@ -101,4 +101,4 @@ void initialize(embed_t* data, size_t len, Initializer init, bool host, unsigned
   }
 }
 
-} // namespace hetu
+} // namespace hetuCTR

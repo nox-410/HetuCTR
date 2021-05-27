@@ -2,9 +2,9 @@ aux_source_directory(utils utils_src)
 aux_source_directory(pybind pybind_src)
 aux_source_directory(core core_src)
 
-pybind11_add_module(hetu_gpu_table ${pybind_src} ${utils_src} ${core_src})
+pybind11_add_module(hetuCTR ${pybind_src} ${utils_src} ${core_src})
 
-target_include_directories(hetu_gpu_table
+target_include_directories(hetuCTR
     PRIVATE
     .
     ${cub_SOURCE_DIR}
@@ -12,7 +12,7 @@ target_include_directories(hetu_gpu_table
     ${NCCL_INCLUDE_DIRS}
 )
 
-target_link_libraries(hetu_gpu_table
+target_link_libraries(hetuCTR
     PRIVATE
     CUDA::cudart
     ${NCCL_LIBRARIES}
