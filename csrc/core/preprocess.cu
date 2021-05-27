@@ -10,7 +10,7 @@ namespace hetu {
 
 void createPreprocessData(PreprocessData &pdata, size_t batch_size, size_t nrank) {
   assert(batch_size > 0);
-  pdata.batch_size = batch_size;
+  pdata.batch_size = 0;
   pdata.allocate_size = batch_size;
   checkCudaErrors(cudaMalloc(
     &pdata.d_idx, sizeof(index_t) * batch_size));
