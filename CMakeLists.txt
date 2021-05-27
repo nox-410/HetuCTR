@@ -15,6 +15,7 @@ set(CMAKE_CUDA_FLAGS "-O3 -w")
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
 set(CUDAToolkit_ROOT /usr/local/cuda)
+set(CMAKE_CUDA_COMPILER ${CUDAToolkit_ROOT}/bin/nvcc)
 find_package(CUDAToolkit REQUIRED)
 
 set(NCCL_ROOT)

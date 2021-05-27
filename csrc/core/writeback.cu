@@ -40,9 +40,6 @@ __global__ void writeBackTargetKernel(HetuGPUTable *tbl, embed_t *dst) {
 }
 
 void HetuGPUTable::writeBack(embed_t *dst) {
-  size_t num_rcvd = 0;
-  for (int i = 0; i < (int)nrank_; i++)
-    num_rcvd += cur_batch_.u_shape_exchanged[i];
   // Compute the prefix sum for return_outdated
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
     d_return_outdated_[1], d_return_outdated_[0], cur_batch_.unique_size, stream_main_));
@@ -50,10 +47,10 @@ void HetuGPUTable::writeBack(embed_t *dst) {
   // Select index that need to be updated into d_query_idx[1]
   checkCudaErrors(cub::DeviceSelect::Flagged(d_temp_, temp_bytes_,
     d_query_idx_[0], d_return_outdated_[1], d_query_idx_[1],
-    &cur_batch_.u_shape_exchanged[nrank_], cur_batch_.unique_size, stream_main_));
+    d_shape_, cur_batch_.unique_size, stream_main_));
 
   // Update received value into local storage
-  writeBackUpdateLocalKernel<<<DIM_GRID(num_rcvd), DIM_BLOCK, 0, stream_main_>>>(this, num_rcvd);
+  writeBackUpdateLocalKernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(this, all2all_received_);
   writeBackTargetKernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this, dst);
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }

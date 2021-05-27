@@ -23,7 +23,7 @@ __global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
 
 __global__ void writeReturnValue(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t len = tbl->cur_batch_.u_shape[tbl->nrank_];
+  size_t len = *(tbl->d_shape_);
   if (id < len) {
     version_t local_version = tbl->d_query_version_[1][id];
     index_t embedding_idx = tbl->d_update_prefix_[id];
@@ -41,27 +41,26 @@ __global__ void writeReturnValue(HetuGPUTable *tbl) {
 }
 
 void HetuGPUTable::handleQuery() {
-  size_t num_rcvd = 0;
-  for (int i = 0; i < nrank_; i++) num_rcvd += cur_batch_.u_shape_exchanged[i];
-  INFO(num_rcvd, " received embedding index to handle.");
-  computeReturnOutdated<<<DIM_GRID(num_rcvd), DIM_BLOCK, 0, stream_main_>>>(this, num_rcvd);
+  INFO(all2all_received_, " received embedding index to handle.");
+  computeReturnOutdated<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(this, all2all_received_);
 
   all2allReturnOutdated();
 
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
-    cur_batch_.u_shape_exchanged, cur_batch_.u_shape, nrank_ + 1, stream_main_));
+    cur_batch_.u_shape_exchanged, cur_batch_.u_shape_exchanged, nrank_ + 1, stream_main_));
 
   checkCudaErrors(cub::DeviceSegmentedReduce::Sum(d_temp_, temp_bytes_,
-    d_return_outdated_[0], cur_batch_.u_shape, nrank_, cur_batch_.u_shape, cur_batch_.u_shape + 1, stream_main_));
+    d_return_outdated_[0], cur_batch_.u_shape, nrank_,
+    cur_batch_.u_shape_exchanged, cur_batch_.u_shape_exchanged + 1, stream_main_));
 
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
 
   // select index that requires update into d_update_prefix_
-  // total number stored in cur_batch_.u_shape[nrank_]
+  // total number stored in d_shape_
   checkCudaErrors(cub::DeviceSelect::Flagged(d_temp_, temp_bytes_,
-    d_query_idx_[1], d_return_outdated_[0], d_update_prefix_, &cur_batch_.u_shape[nrank_], num_rcvd, stream_main_));
+    d_query_idx_[1], d_return_outdated_[0], d_update_prefix_, d_shape_, all2all_received_, stream_main_));
 
-  writeReturnValue<<<DIM_GRID(num_rcvd), DIM_BLOCK, 0, stream_main_>>>(this);
+  writeReturnValue<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(this);
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 

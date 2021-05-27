@@ -32,6 +32,7 @@ public:
   // maxinum size of a batch fed,
   // when the table received a larger batch, it will have to reallocate memory
   size_t batch_size_reserved_ = 1;
+  size_t all2all_received_;
 
   const version_t pull_bound_, push_bound_;
 
@@ -50,6 +51,7 @@ public:
 
   index_t * d_need_update_ = nullptr;
   index_t * d_update_prefix_ = nullptr;
+  size_t * d_shape_ = nullptr;
 
   // query buffer, dual buffer for send and receive
   version_t * d_query_version_[2] = {};
@@ -86,7 +88,6 @@ public:
   void writeBack(embed_t *dst);
   void all2allExchangeShape(const size_t *shape, size_t *shape_out);
   void all2allExchangeQuery();
-  void all2allGradient();
   void all2allReturnOutdated();
   void all2allReturnValue();
 
