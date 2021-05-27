@@ -64,11 +64,11 @@ void HetuGPUTable::generateGradient(embed_t *grad) {
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 
-  // std::cout << (int)rank_ << " ";
+  // std::cout << rank_ << " ";
   // for (int i = 0 ; i < nrank_; i++)
   //   std::cout << prev_batch_.u_shape[i] << " ";
   // std::cout << std::endl;
-  // std::cout << (int)rank_ << " ";
+  // std::cout << rank_ << " ";
   // for (int i = 0 ; i < nrank_; i++)
   //   std::cout << prev_batch_.u_shape_exchanged[i] << " ";
   // std::cout << std::endl;

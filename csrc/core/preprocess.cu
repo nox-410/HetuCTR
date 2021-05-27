@@ -109,8 +109,8 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
   computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(this);
 
   // convert offset to shape
-  block_cvt_offset_to_shape_kernel<<<1, (int)nrank_ + 1,
-    sizeof(size_t) * ((int)nrank_ + 1), stream_main_>>>(cur_batch_.u_shape);
+  block_cvt_offset_to_shape_kernel<<<1, nrank_ + 1,
+    sizeof(size_t) * (nrank_ + 1), stream_main_>>>(cur_batch_.u_shape);
 
   // exchange shape with other workers
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
@@ -124,7 +124,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
   //   std::cout << h[i] << std::endl;
   // }
   // std::cout << "rank " << rank_ << ":";
-  // for (worker_t i = 0; i < nrank_; i++) {
+  // for (int i = 0; i < nrank_; i++) {
   //   std::cout << cur_batch_.u_shape[i] << " ";
   // }
   // std::cout << std::endl;

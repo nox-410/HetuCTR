@@ -87,7 +87,7 @@ __global__ void table_update_remote_kernel(HetuGPUTable *tbl, size_t start, size
 
 void HetuGPUTable::handleGradient() {
   size_t offset = 0;
-  for (worker_t i = 0 ; i < nrank_; i++) {
+  for (int i = 0 ; i < nrank_; i++) {
     size_t shape = prev_batch_.u_shape_exchanged[i];
     table_update_remote_kernel<<<shape, DIM_BLOCK, 0, stream_main_>>>(this, offset, shape);
     offset += shape;

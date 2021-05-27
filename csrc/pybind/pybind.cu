@@ -6,9 +6,9 @@
 using namespace hetu;
 
 static std::unique_ptr<HetuGPUTable> makeHetuGPUTable(
-  const worker_t rank,
-  const worker_t nrank,
-  const worker_t device_id,
+  const int rank,
+  const int nrank,
+  const int device_id,
   const std::string &ip,
   const int port,
   const size_t embedding_length,

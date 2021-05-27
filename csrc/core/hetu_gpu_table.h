@@ -20,9 +20,9 @@ namespace hetu {
  */
 class HetuGPUTable : public managed {
 public:
-  const worker_t rank_;
-  const worker_t nrank_;
-  const worker_t device_id_;
+  const int rank_;
+  const int nrank_;
+  const int device_id_;
 
   const size_t kEmbeddingIDMax;
   const size_t kEmbeddingWidth;
@@ -95,16 +95,16 @@ public:
   template<class ...Args>
   inline void INFO(Args ...args) {
     if (verbose_ >= 1) {
-      std::cout << "HetuGPUTable rank " << (int)rank_ << ": ";
+      std::cout << "HetuGPUTable rank " << rank_ << ": ";
       std::initializer_list<int>({__printarg(args)...});
       std::cout << std::endl;
     }
   }
 
   HetuGPUTable(
-    const worker_t rank,
-    const worker_t nrank,
-    const worker_t device_id,
+    const int rank,
+    const int nrank,
+    const int device_id,
     const std::string &ip,
     const int port,
     const size_t embedding_length,
