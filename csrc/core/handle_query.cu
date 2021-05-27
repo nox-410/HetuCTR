@@ -21,7 +21,7 @@ __global__ void computeReturnOutdated(HetuGPUTable *tbl, size_t len) {
   }
 }
 
-__global__ void writeReturnValue(HetuGPUTable *tbl) {
+__global__ void write_return_value_kernel(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t len = *(tbl->d_shape_);
   if (id < len) {
@@ -65,7 +65,7 @@ void HetuGPUTable::handleQuery() {
   checkCudaErrors(cub::DeviceSelect::Flagged(d_temp_, temp_bytes_,
     d_query_idx_[1], d_return_outdated_[0], d_update_prefix_, d_shape_, all2all_received_, stream_main_));
 
-  writeReturnValue<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this);
+  write_return_value_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 

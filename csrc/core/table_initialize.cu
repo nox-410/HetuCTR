@@ -9,7 +9,7 @@
 
 #include <cub/cub.cuh>
 
-using namespace hetuCTR;
+namespace hetuCTR {
 
 void HetuGPUTable::initializeNCCL(const std::string &ip, const int port) {
   checkCudaErrors(cudaSetDevice(device_id_));
@@ -234,3 +234,5 @@ HetuGPUTable::~HetuGPUTable() {
   freeAuxillaryMemory();
   delete table_;
 }
+
+} // namespace hetuCTR

@@ -5,7 +5,7 @@
 
 namespace hetuCTR {
 
-__global__ void writeBackUpdateLocalKernel(HetuGPUTable *tbl, size_t len) {
+__global__ void writeback_update_kernel(HetuGPUTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
     index_t embedding_idx = tbl->d_query_idx_[1][id];
@@ -20,7 +20,7 @@ __global__ void writeBackUpdateLocalKernel(HetuGPUTable *tbl, size_t len) {
   }
 }
 
-__global__ void writeBackTargetKernel(HetuGPUTable *tbl, embed_t *dst) {
+__global__ void writeback_kernel(HetuGPUTable *tbl, embed_t *dst) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t len = tbl->cur_batch_.batch_size;
   if (id < len) {
@@ -50,8 +50,8 @@ void HetuGPUTable::writeBack(embed_t *dst) {
     d_shape_, cur_batch_.unique_size, stream_main_));
 
   // Update received value into local storage
-  writeBackUpdateLocalKernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
-  writeBackTargetKernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
+  writeback_update_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
+  writeback_kernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
 

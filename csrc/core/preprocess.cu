@@ -8,7 +8,7 @@
 namespace hetuCTR {
 
 // This computes keys as <root_id, embedding_id>
-__global__ void generateSortkeys(HetuGPUTable *tbl) {
+__global__ void generate_sort_kv_kernel(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.batch_size) {
     index_t embedding_idx = tbl->cur_batch_.d_idx[id];
@@ -31,7 +31,7 @@ __global__ void block_cvt_offset_to_shape_kernel(size_t *dst) {
   dst[id] = val_nxt - val;
 }
 
-__global__ void writeSortedIndex(HetuGPUTable *tbl) {
+__global__ void write_sort_result_kernel(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.batch_size) {
     index_t arg = tbl->cur_batch_.d_sorted_arg[id];
@@ -42,7 +42,7 @@ __global__ void writeSortedIndex(HetuGPUTable *tbl) {
 
 // This will compute cur_batch_.d_idx_map
 // cur_batch_.d_root cur_batch_.u_shape
-__global__ void computeBatch(HetuGPUTable *tbl) {
+__global__ void preprocess_batch_data_kernel(HetuGPUTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t n = tbl->cur_batch_.unique_size;
   if (id < n) {
@@ -87,7 +87,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
     cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyHostToDevice, stream_main_));
 
   // use unused memory here to store temp sort keys
-  generateSortkeys<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
+  generate_sort_kv_kernel<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
   // we don't need to sort all the bits when using radix sort.
   // using end_bit smaller than 64 can yield corresponding performance improvement
   int end_bit = std::ceil(std::log2(kEmbeddingIDMax * nrank_));
@@ -97,7 +97,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
     batch_size, 0, end_bit, stream_main_));
 
   // After argsort write value to d_offset (temp, modify in next step)
-  writeSortedIndex<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
+  write_sort_result_kernel<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   // perform unique operation, store total number of unique embedding items;
   checkCudaErrors(cub::DeviceRunLengthEncode::Encode(
@@ -113,7 +113,7 @@ void HetuGPUTable::preprocessIndex(index_t *data, size_t batch_size) {
     cur_batch_.d_run_length, cur_batch_.d_run_length, cur_batch_.batch_size + 1, stream_main_));
 
   // Computes other preprocess data
-  computeBatch<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
+  preprocess_batch_data_kernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
 
   // convert offset to shape
   block_cvt_offset_to_shape_kernel<<<1, nrank_ + 1,
