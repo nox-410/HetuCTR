@@ -12,9 +12,11 @@ __global__ void writeback_update_kernel(HetuTable *tbl, size_t len) {
     auto iter = tbl->table_->find(embedding_idx);
     if (iter != tbl->table_->end()) {
       index_t mem_offset = iter->second;
+      assert(mem_offset < tbl->kNonLocalStorageMax);
       tbl->d_version_[mem_offset] = tbl->d_return_version_[1][id];
       for (int i = 0; i < tbl->kEmbeddingWidth; i++) {
-        tbl->d_embedding_[tbl->kEmbeddingWidth * mem_offset + i] = tbl->d_return_val_[1][tbl->kEmbeddingWidth * id + i];
+        tbl->d_embedding_[tbl->kEmbeddingWidth * mem_offset + i] =
+          tbl->d_return_val_[1][tbl->kEmbeddingWidth * id + i] + tbl->d_gradient_[tbl->kEmbeddingWidth * mem_offset + i];
       }
     }
   }

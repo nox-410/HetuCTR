@@ -75,7 +75,9 @@ void HetuTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> st
   // reorder key with Predicate
   auto partition_point = thrust::stable_partition(key.begin(), key.end(), _PartitionPrediate(rank_, d_root_));
 
-  table_ = new concurrent_unordered_map<index_t, index_t, kInvalidIndex>(2 * kStorageMax, kInvalidIndex);
+  // Use larger hash_table_size to avoid conflict
+  size_t hash_table_size = std::max(1UL, kStorageMax * 2);
+  table_ = new concurrent_unordered_map<index_t, index_t, kInvalidIndex>(hash_table_size, kInvalidIndex);
   insert_kernel<<<DIM_GRID(kStorageMax), DIM_BLOCK, 0, stream_main_>>>(
     table_, key.data().get(), value.data().get(), kStorageMax);
 
@@ -98,9 +100,11 @@ void HetuTable::initializeTable(SArray<worker_t> root_id_arr, SArray<index_t> st
     d_updates_, 0, sizeof(version_t) * kNonLocalStorageMax));
 
   // Initialize version, set local version to 1, set non-local version to invalid
-  auto v_ptr = thrust::device_ptr<version_t>(d_version_);
-  thrust::fill(v_ptr, v_ptr + kNonLocalStorageMax, kInvalidVersion);
-  thrust::fill(v_ptr + kNonLocalStorageMax, v_ptr + kStorageMax, 1);
+  if (kStorageMax > 0) {
+    auto v_ptr = thrust::device_ptr<version_t>(d_version_);
+    thrust::fill(v_ptr, v_ptr + kNonLocalStorageMax, kInvalidVersion);
+    thrust::fill(v_ptr + kNonLocalStorageMax, v_ptr + kStorageMax, 0);
+  }
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
 

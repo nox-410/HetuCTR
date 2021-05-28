@@ -35,6 +35,7 @@ __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
     if (update_type == 2) {
       update_count = tbl->d_updates_[offset];
       tbl->d_updates_[offset] = 0;
+      tbl->d_version_[offset] += update_count;
     }
     tbl->d_query_gradient_idx_[0][query_idx] = tbl->prev_batch_.d_unique_idx[id];
     tbl->d_query_updates_[0][query_idx] = update_count;
@@ -66,8 +67,8 @@ void HetuTable::generateGradient(embed_t *grad) {
 __global__ void lookup_version_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < tbl->cur_batch_.unique_size) {
-    index_t idx = tbl->cur_batch_.d_offset[id];
-    if (idx >= 0) tbl->d_query_version_[0][id] = tbl->d_version_[idx];
+    index_t offset = tbl->cur_batch_.d_offset[id];
+    if (offset != kInvalidIndex) tbl->d_query_version_[0][id] = tbl->d_version_[offset];
     else tbl->d_query_version_[0][id] = kInvalidVersion;
   }
 }

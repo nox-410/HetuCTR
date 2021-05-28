@@ -92,6 +92,7 @@ void _initialize(Iterator iter, size_t len, Initializer init, bool host, unsigne
 }
 
 void initialize(embed_t* data, size_t len, Initializer init, bool host, unsigned int seed) {
+  if (len == 0) return;
   thrust::counting_iterator<unsigned long long> sequence(0);
   if (host) {
     _initialize(data, len, init, host, seed);

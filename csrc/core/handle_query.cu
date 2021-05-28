@@ -4,7 +4,7 @@
 
 namespace hetuCTR {
 
-__global__ void computeReturnOutdated(HetuTable *tbl, size_t len) {
+__global__ void decide_outdated_kernel(HetuTable *tbl, size_t len, size_t send2self_start, size_t send2self_end) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < len) {
     version_t local_version = tbl->d_query_version_[1][id];
@@ -15,9 +15,9 @@ __global__ void computeReturnOutdated(HetuTable *tbl, size_t len) {
     assert(iter != tbl->table_->end());
 
     version_t global_version = tbl->d_version_[iter->second];
-    if (local_version == kInvalidVersion || local_version + tbl->pull_bound_ <= global_version)
-      tbl->d_return_outdated_[0][id] = 1;
-    else tbl->d_return_outdated_[0][id] = 0;
+    bool is_from_self = id >= send2self_start && id < send2self_end;
+    bool is_outdated = local_version == kInvalidVersion || local_version + tbl->pull_bound_ < global_version;
+    tbl->d_return_outdated_[0][id] = is_outdated && !is_from_self;
   }
 }
 
@@ -42,7 +42,17 @@ __global__ void write_return_value_kernel(HetuTable *tbl) {
 
 void HetuTable::handleQuery() {
   INFO(all2all_received_, " received embedding index to handle.");
-  computeReturnOutdated<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
+  // neglect sending to self query, these embedding won't be considered outdated
+  // if we don't manully set this,
+  // some local embedding might be considered outdated if it has just received updates from other workers
+  size_t send2self_start = 0, send2self_end;
+  for (int i = 0; i < rank_; i++)
+    send2self_start += cur_batch_.h_shape_exchanged[i];
+  send2self_end = send2self_start + cur_batch_.h_shape_exchanged[rank_];
+
+  // Decide what emebedding is outdated, neglect send2self part
+  decide_outdated_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(
+    d_this, all2all_received_, send2self_start, send2self_end);
 
   all2allReturnOutdated();
 
