@@ -53,7 +53,6 @@ def test_two(rank):
         root_arr = root_arr, storage_arr = storage_arr, verbose=0
     )
     embed_id = np.random.randint(length, size=0, dtype=np.int64)
-    table.preprocess(embed_id.ctypes.data, 0)
     update_store = np.zeros(length)
     np.random.seed(rank)
     for i in range(50):
@@ -68,7 +67,7 @@ def test_two(rank):
     update_store = torch.Tensor(update_store).cuda()
     dist.all_reduce(update_store)
     val = dest[:len(embed_id), 0]
-    assert( torch.mean(torch.abs(val - update_store[embed_id])) < 1e-4 )
+    assert( torch.max(torch.abs(val - update_store[embed_id])) < 1e-4 )
 
 def worker(rank):
     torch.cuda.set_device(rank)
