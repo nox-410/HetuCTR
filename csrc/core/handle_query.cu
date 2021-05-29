@@ -25,7 +25,6 @@ __global__ void write_return_value_kernel(HetuTable *tbl) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   size_t len = *(tbl->d_shape_);
   if (id < len) {
-    version_t local_version = tbl->d_query_version_[1][id];
     index_t embedding_idx = tbl->d_update_prefix_[id];
     auto iter = tbl->table_->find(embedding_idx);
 

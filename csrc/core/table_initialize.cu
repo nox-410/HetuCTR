@@ -168,7 +168,7 @@ void HetuTable::allocateAuxillaryMemory(size_t batch_size) {
   size_t temp_bytes_max = 1, temp_bytes;
 
   // Check how much temp memory cub want to use
-  index_t *ptr;
+  index_t *ptr = nullptr;
   checkCudaErrors(cub::DeviceRadixSort::SortPairs(
     nullptr, temp_bytes, ptr, ptr, ptr, ptr, batch_size));
   temp_bytes_max = std::max(temp_bytes, temp_bytes_max);

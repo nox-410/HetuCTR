@@ -6,8 +6,10 @@ namespace hetuCTR {
 
 // aggregate all the gradients into storage
 __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
-  const size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
   const size_t width = tbl->kEmbeddingWidth;
+  const size_t wid = id % width;
+  id = id / width;
   if (id >= tbl->prev_batch_.unique_size) return;
 
   bool need_update = tbl->d_need_update_[id];
@@ -30,7 +32,7 @@ __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
 
   index_t l = tbl->prev_batch_.d_run_length[id], r = tbl->prev_batch_.d_run_length[id + 1];
 
-  if (need_update) {
+  if (need_update && wid == 0) {
     version_t update_count = r - l;
     if (update_type == 2) {
       update_count = tbl->d_updates_[offset];
@@ -41,27 +43,25 @@ __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
     tbl->d_query_updates_[0][query_idx] = update_count;
   }
 
-  for (size_t i = 0; i < width; i++) {
-    embed_t sum = 0;
-    for (index_t j = l; j < r; j++) {
-      index_t grad_offset = tbl->prev_batch_.d_sorted_arg[j];
-      sum += grad[grad_offset * width + i];
-    }
-    if (update_type != 0) dest[i] += sum;
-    else dest_query[i] = sum;
+  embed_t sum = 0;
+  for (index_t j = l; j < r; j++) {
+    index_t grad_offset = tbl->prev_batch_.d_sorted_arg[j];
+    sum += grad[grad_offset * width + wid];
+  }
+  if (update_type != 0) dest[wid] += sum;
+  else dest_query[wid] = sum;
 
-    if (update_type >= 2) dest_grad[i] += sum;
-    if (update_type == 2) {
-      dest_query[i] = dest_grad[i];
-      dest_grad[i] = 0;
-    }
+  if (update_type >= 2) dest_grad[wid] += sum;
+  if (update_type == 2) {
+    dest_query[wid] = dest_grad[wid];
+    dest_grad[wid] = 0;
   }
 }
 
 void HetuTable::generateGradient(embed_t *grad) {
   size_t num_unique = prev_batch_.unique_size;
 
-  gradient_reduction_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(d_this, grad);
+  gradient_reduction_kernel<<<DIM_GRID(num_unique * kEmbeddingWidth), DIM_BLOCK, 0, stream_main_>>>(d_this, grad);
 }
 
 __global__ void lookup_version_kernel(HetuTable *tbl) {

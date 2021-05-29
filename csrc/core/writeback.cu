@@ -24,21 +24,20 @@ __global__ void writeback_update_kernel(HetuTable *tbl, size_t len) {
 
 __global__ void writeback_kernel(HetuTable *tbl, embed_t *dst) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t len = tbl->cur_batch_.batch_size;
-  if (id < len) {
-    index_t mapped_idx = tbl->cur_batch_.d_idx_map[id];
-    embed_t *val;
-    index_t mem_offset = tbl->cur_batch_.d_offset[mapped_idx];
-    if (mem_offset == kInvalidIndex) {
-      index_t ret_offset = tbl->d_return_outdated_[0][mapped_idx];
-      val = &tbl->d_return_val_[1][tbl->kEmbeddingWidth * ret_offset];
-    } else {
-      val = &tbl->d_embedding_[tbl->kEmbeddingWidth * mem_offset];
-    }
-    for (int i = 0 ; i < tbl->kEmbeddingWidth; i++) {
-      dst[tbl->kEmbeddingWidth * id + i] = val[i];
-    }
+  size_t width = tbl->kEmbeddingWidth;
+  size_t wid = id % width;
+  id = id / width;
+  if (id >= tbl->cur_batch_.batch_size) return;
+  index_t mapped_idx = tbl->cur_batch_.d_idx_map[id];
+  embed_t *val;
+  index_t mem_offset = tbl->cur_batch_.d_offset[mapped_idx];
+  if (mem_offset == kInvalidIndex) {
+    index_t ret_offset = tbl->d_return_outdated_[0][mapped_idx];
+    val = &tbl->d_return_val_[1][width * ret_offset];
+  } else {
+    val = &tbl->d_embedding_[width * mem_offset];
   }
+  dst[width * id + wid] = val[wid];
 }
 
 void HetuTable::writeBack(embed_t *dst) {
@@ -53,7 +52,7 @@ void HetuTable::writeBack(embed_t *dst) {
 
   // Update received value into local storage
   writeback_update_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
-  writeback_kernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
+  writeback_kernel<<<DIM_GRID(cur_batch_.batch_size * kEmbeddingWidth), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
 
