@@ -18,3 +18,19 @@ target_link_libraries(hetuCTR
     ${NCCL_LIBRARIES}
     ZMQ::lib
 )
+
+find_package(METIS REQUIRED)
+
+aux_source_directory(partition partition_src)
+
+pybind11_add_module(hetuCTR_partition ${partition_src})
+
+target_link_libraries(hetuCTR_partition
+    PRIVATE
+    ${METIS_LIBRARIES}
+)
+
+target_include_directories(hetuCTR
+    PRIVATE
+    ${METIS_INCLUDE_DIR}
+)
