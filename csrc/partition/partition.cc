@@ -1,7 +1,7 @@
 #include <metis.h>
 #include "../pybind/pybind.h"
 
-static_assert(sizeof(idx_t) == 4, "metis 64bit version should be used");
+static_assert(sizeof(idx_t) == 8, "metis 64bit version should be used");
 
 namespace hetuCTR {
 
@@ -23,8 +23,8 @@ bipartiteGraphPartition(py::array_t<idx_t> _indptr, py::array_t<idx_t> _indices,
   std::vector<idx_t> vwgt(3 * num_nodes);
 
   for (idx_t i = 0; i < num_nodes; i++) {
-    vwgt[i * ncon] = (int)(i < offset);
-    vwgt[i * ncon + 1] = (int)(i >= offset);
+    vwgt[i * ncon] = (idx_t)(i < offset);
+    vwgt[i * ncon + 1] = (idx_t)(i >= offset);
     vwgt[i * ncon + 2] = 1;
   }
   idx_t edge_cut;

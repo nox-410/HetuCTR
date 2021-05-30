@@ -30,6 +30,23 @@ FetchContent_Declare(cub URL https://github.com/NVlabs/cub/archive/refs/tags/1.1
 message(STATUS "Preparing cub ...")
 FetchContent_MakeAvailable(cub)
 
+FetchContent_Declare(GKlib URL https://github.com/KarypisLab/GKlib/archive/refs/heads/master.zip)
+message(STATUS "Preparing metis-GKlib ...")
+FetchContent_MakeAvailable(GKlib)
+
+set(METIS_LIBRARY_TYPE "SHARED")
+FetchContent_Declare(metis64 URL https://github.com/KarypisLab/METIS/archive/refs/heads/master.zip)
+message(STATUS "Preparing metis ...")
+FetchContent_GetProperties(metis64)
+if(NOT metis64_POPULATED)
+    FetchContent_Populate(metis64)
+    add_subdirectory(${metis64_SOURCE_DIR}/libmetis ${metis64_BINARY_DIR})
+    target_link_libraries(metis GKlib)
+    target_include_directories(metis PRIVATE ${GKlib_SOURCE_DIR})
+    target_include_directories(metis PUBLIC ${METIS_SOURCE_DIR}/include)
+    target_compile_definitions(metis PUBLIC -DIDXTYPEWIDTH=64 -DREALTYPEWIDTH=32)
+endif()
+
 find_package(ZMQ 4 REQUIRED)
 find_package(pybind11 2.6 CONFIG)
 
