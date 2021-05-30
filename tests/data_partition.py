@@ -13,7 +13,7 @@ def load_criteo_data():
     return data
 
 def partition(data, nrank):
-    idx_max = data.max()
+    idx_max = int(data.max()) + 1
     item_max = data.shape[0]
     id_per_item = data.shape[1]
     total = idx_max + item_max
