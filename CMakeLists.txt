@@ -43,7 +43,7 @@ if(NOT metis64_POPULATED)
     add_subdirectory(${metis64_SOURCE_DIR}/libmetis ${metis64_BINARY_DIR})
     target_link_libraries(metis GKlib)
     target_include_directories(metis PRIVATE ${GKlib_SOURCE_DIR})
-    target_include_directories(metis PUBLIC ${METIS_SOURCE_DIR}/include)
+    target_include_directories(metis PUBLIC ${metis64_SOURCE_DIR}/include)
     target_compile_definitions(metis PUBLIC -DIDXTYPEWIDTH=64 -DREALTYPEWIDTH=32)
 endif()
 
