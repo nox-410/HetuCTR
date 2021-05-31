@@ -19,13 +19,12 @@ bipartiteGraphPartition(py::array_t<idx_t> _indptr, py::array_t<idx_t> _indices,
   }
 
   idx_t num_nodes = _indptr.size() - 1;
-  idx_t ncon = 3;
-  std::vector<idx_t> vwgt(3 * num_nodes);
+  idx_t ncon = 2;
+  std::vector<idx_t> vwgt(ncon * num_nodes);
 
   for (idx_t i = 0; i < num_nodes; i++) {
     vwgt[i * ncon] = (idx_t)(i < offset);
     vwgt[i * ncon + 1] = (idx_t)(i >= offset);
-    vwgt[i * ncon + 2] = 1;
   }
   idx_t edge_cut;
 
