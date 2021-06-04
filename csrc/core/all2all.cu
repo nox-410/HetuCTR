@@ -30,14 +30,12 @@ void HetuTable::all2allExchangeQuery() {
     snd_offset += cur_batch_.h_shape[i];
     rcvd_offset += cur_batch_.h_shape_exchanged[i];
   }
-  checkCudaErrors(ncclGroupEnd());
   all2all_received_ = rcvd_offset;
   // currently, we have to make sure each worker have the same batchsize
   // under such assumption, the received number won't exceed this value
   assert(all2all_received_ <= batch_size_reserved_ * nrank_);
 
   // gradient part, using prev_batch
-  checkCudaErrors(ncclGroupStart());
   snd_offset = 0, rcvd_offset = 0;
   for (int i = 0; i < nrank_; i++) {
     checkCudaErrors(ncclSend(

@@ -53,14 +53,14 @@ void HetuTable::handleQuery() {
   decide_outdated_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(
     d_this, all2all_received_, send2self_start, send2self_end);
 
-  all2allReturnOutdated();
-
   checkCudaErrors(cub::DeviceScan::ExclusiveSum(d_temp_, temp_bytes_,
     cur_batch_.u_shape_exchanged, cur_batch_.u_shape_exchanged, nrank_ + 1, stream_main_));
 
   checkCudaErrors(cub::DeviceSegmentedReduce::Sum(d_temp_, temp_bytes_,
     d_return_outdated_[0], cur_batch_.u_shape, nrank_,
     cur_batch_.u_shape_exchanged, cur_batch_.u_shape_exchanged + 1, stream_main_));
+
+  all2allReturnOutdated();
 
   // exchange return value shape and copy them to host
   all2allExchangeShape(cur_batch_.u_shape, cur_batch_.u_shape_exchanged);
@@ -75,10 +75,6 @@ void HetuTable::handleQuery() {
     d_query_idx_[1], d_return_outdated_[0], d_update_prefix_, d_shape_, all2all_received_, stream_main_));
 
   write_return_value_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this);
-
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
-
-  all2allReturnValue();
 }
 
 __global__ void table_update_remote_kernel(HetuTable *tbl, size_t start, size_t len) {

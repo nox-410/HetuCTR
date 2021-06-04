@@ -53,7 +53,6 @@ void HetuTable::writeBack(embed_t *dst) {
   // Update received value into local storage
   writeback_update_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_received_);
   writeback_kernel<<<DIM_GRID(cur_batch_.batch_size * kEmbeddingWidth), DIM_BLOCK, 0, stream_main_>>>(d_this, dst);
-  checkCudaErrors(cudaStreamSynchronize(stream_main_));
 }
 
 } // namespace hetuCTR

@@ -126,20 +126,6 @@ void HetuTable::preprocessIndex(index_t *data, size_t batch_size) {
     sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
   checkCudaErrors(cudaMemcpyAsync(cur_batch_.h_shape_exchanged, cur_batch_.u_shape_exchanged,
     sizeof(size_t) * (nrank_ + 1), cudaMemcpyDeviceToHost, stream_main_));
-
-  // std::cout << cur_batch_.batch_size << " " << cur_batch_.unique_size << std::endl;
-
-  // std::vector<index_t> h(batch_size + 1);
-  // checkCudaErrors(cudaMemcpy(h.data(), cur_batch_.d_run_length, (batch_size + 1) * 8, cudaMemcpyDeviceToHost));
-  // if (rank_ == 0)
-  // for (int  i = 0 ; i <= batch_size; i++) {
-  //   std::cout << h[i] << std::endl;
-  // }
-  // std::cout << "rank " << rank_ << ":";
-  // for (int i = 0; i < nrank_; i++) {
-  //   std::cout << cur_batch_.u_shape[i] << " ";
-  // }
-  // std::cout << std::endl;
 }
 
 // figure out all gradients to push

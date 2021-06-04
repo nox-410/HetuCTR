@@ -15,7 +15,13 @@ void HetuTable::pushPull(unsigned long grad, unsigned long dst) {
 
   handleQuery();
 
+  checkCudaErrors(cudaStreamSynchronize(stream_main_));
+
+  all2allReturnValue();
+
   writeBack((embed_t*)dst);
+
+  checkCudaErrors(cudaStreamSynchronize(stream_main_));
   return;
 }
 
@@ -31,6 +37,7 @@ void HetuTable::preprocess(unsigned long data_ptr, size_t batch_size) {
   }
   cur_batch_.batch_size = batch_size;
 
+  // sync data with this pointer on device
   checkCudaErrors(cudaMemcpyAsync(
     d_this, this, sizeof(HetuTable), cudaMemcpyHostToDevice, stream_main_));
 
