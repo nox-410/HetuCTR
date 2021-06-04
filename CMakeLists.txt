@@ -34,6 +34,7 @@ find_package(ZMQ 4 REQUIRED)
 find_package(pybind11 2.6 CONFIG)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc)
-add_subdirectory(${PROJECT_SOURCE_DIR}/csrc/partition)
+
+# add_subdirectory(${PROJECT_SOURCE_DIR}/csrc/partition)
 
 enable_testing()

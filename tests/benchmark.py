@@ -15,6 +15,8 @@ port = 23456
 np.random.seed(0)
 root_arr = np.random.randint(nrank, size=length)
 
+# data_id = np.load("data_partition.npy")
+
 def get_sample_data(data, bs):
    limit = data.shape[0]
    idx = np.random.randint(limit, size=bs)
@@ -36,6 +38,8 @@ def torch_sync_data(*args):
     return t
 
 def worker(rank, batch_size, width):
+    # global data
+    # data = data[np.where(data_id==rank)]
     item_size = batch_size * 26
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", init_method="tcp://127.0.0.1:12323", world_size=nrank, rank=rank)
@@ -78,4 +82,4 @@ if __name__ == '__main__':
             proc = multiprocessing.Process(target=worker, args=[i, args.batch_size, args.embed_dim])
             proc.start()
     else:
-        worker(i)
+        worker(i, args.batch_size, args.embed_dim)
