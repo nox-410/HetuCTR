@@ -5,6 +5,7 @@
 using namespace hetuCTR;
 
 void HetuTable::pushPull(unsigned long grad, unsigned long dst) {
+  checkCudaErrors(cudaSetDevice(device_id_));
   generateGradient((embed_t*)grad);
 
   generateQuery();
@@ -26,6 +27,7 @@ void HetuTable::pushPull(unsigned long grad, unsigned long dst) {
 }
 
 void HetuTable::preprocess(unsigned long data_ptr, size_t batch_size) {
+  checkCudaErrors(cudaSetDevice(device_id_));
   std::swap(cur_batch_, prev_batch_);
   if (batch_size > batch_size_reserved_) {
     allocateAuxillaryMemory(batch_size);

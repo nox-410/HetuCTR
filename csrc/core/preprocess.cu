@@ -84,7 +84,7 @@ void HetuTable::preprocessIndex(index_t *data, size_t batch_size) {
 
   // Copy batch embedding index data into Device
   checkCudaErrors(cudaMemcpyAsync(
-    cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyHostToDevice, stream_main_));
+    cur_batch_.d_idx, data, sizeof(index_t) * batch_size, cudaMemcpyDefault, stream_main_));
 
   // use unused memory here to store temp sort keys
   generate_sort_kv_kernel<<<DIM_GRID(batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
