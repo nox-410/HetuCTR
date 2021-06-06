@@ -56,6 +56,7 @@ void HetuTable::all2allExchangeQuery() {
     rcvd_offset += prev_batch_.h_shape_exchanged[i];
   }
   checkCudaErrors(ncclGroupEnd());
+  all2all_gradient_received_ = rcvd_offset;
   INFO("Total gradient update receive/push = ", rcvd_offset, "/", snd_offset);
 }
 

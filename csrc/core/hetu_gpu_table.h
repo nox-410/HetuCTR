@@ -32,7 +32,7 @@ public:
   // maxinum size of a batch fed,
   // when the table received a larger batch, it will have to reallocate memory
   size_t batch_size_reserved_ = 1;
-  size_t all2all_received_;
+  size_t all2all_received_, all2all_gradient_received_;
 
   const version_t pull_bound_, push_bound_;
 

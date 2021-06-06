@@ -77,29 +77,40 @@ void HetuTable::handleQuery() {
   write_return_value_kernel<<<DIM_GRID(all2all_received_), DIM_BLOCK, 0, stream_main_>>>(d_this);
 }
 
-__global__ void table_update_remote_kernel(HetuTable *tbl, size_t start, size_t len) {
+// after receiving embedding gradients, convert them to local offset
+__global__ void cvt_embedding_idx_2_offset(HetuTable *tbl, size_t len) {
   size_t id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < len) {
-    size_t width = tbl->kEmbeddingWidth;
-    id += start;
-    index_t embedding_idx = tbl->d_query_gradient_idx_[1][id];
-    auto iter = tbl->table_->find(embedding_idx);
+  if (id >= len) return;
+  index_t embedding_idx = tbl->d_query_gradient_idx_[1][id];
+  auto iter = tbl->table_->find(embedding_idx);
 
-    assert(tbl->d_root_[embedding_idx] == tbl->rank_);
-    assert(iter != tbl->table_->end());
-    index_t offset = iter->second;
+  assert(tbl->d_root_[embedding_idx] == tbl->rank_);
+  assert(iter != tbl->table_->end());
+  index_t offset = iter->second;
+  tbl->d_query_gradient_idx_[1][id] = offset;
+}
 
+__global__ void table_update_remote_kernel(HetuTable *tbl, size_t id_offset, size_t len) {
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t width = tbl->kEmbeddingWidth;
+  size_t wid = id % width;
+  id = id / width;
+  if (id >= len) return;
+  id += id_offset;
+  index_t offset = tbl->d_query_gradient_idx_[1][id];
+  if (wid == 0)
     tbl->d_version_[offset] += tbl->d_query_updates_[1][id];
-    for (int i = 0; i < tbl->kEmbeddingWidth; i++)
-      tbl->d_embedding_[offset * width + i] += tbl->d_query_val_[1][id * width + i];
-  }
+  tbl->d_embedding_[offset * width + wid] += tbl->d_query_val_[1][id * width + wid];
 }
 
 void HetuTable::handleGradient() {
+  cvt_embedding_idx_2_offset<<<DIM_GRID(all2all_gradient_received_), DIM_BLOCK, 0, stream_main_>>>(d_this, all2all_gradient_received_);
+
+  // Update received gradients from different worker one by one to avoid data conflict
   size_t offset = 0;
   for (int i = 0 ; i < nrank_; i++) {
     size_t shape = prev_batch_.h_shape_exchanged[i];
-    table_update_remote_kernel<<<DIM_GRID(shape), DIM_BLOCK, 0, stream_main_>>>(d_this, offset, shape);
+    table_update_remote_kernel<<<DIM_GRID(shape * kEmbeddingWidth), DIM_BLOCK, 0, stream_main_>>>(d_this, offset, shape);
     offset += shape;
   }
 }
