@@ -21,7 +21,7 @@ def test_one(rank):
     storage_arr = np.where(root_arr <= rank)[0]
     table = hetuCTR.HetuTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
-        pull_bound = 0, push_bound = 0, init=init,
+        pull_bound = 0, push_bound = 0, init=init, learning_rate=-1,
         length = length, width = width,
         root_arr = root_arr, storage_arr = storage_arr, verbose=0
     )
@@ -48,7 +48,7 @@ def test_two(rank):
     storage_arr = np.where(root_arr <= rank)[0]
     table = hetuCTR.HetuTable(
         rank=rank, nrank=nrank, device_id=rank, ip=ip, port=port,
-        pull_bound = 0, push_bound = 0, init=init,
+        pull_bound = 0, push_bound = 0, init=init, learning_rate=-1,
         length = length, width = width,
         root_arr = root_arr, storage_arr = storage_arr, verbose=0
     )

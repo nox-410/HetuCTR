@@ -29,6 +29,8 @@ public:
   const size_t kStorageMax;
   size_t kNonLocalStorageMax;
 
+  const embed_t learning_rate_;
+
   // maxinum size of a batch fed,
   // when the table received a larger batch, it will have to reallocate memory
   size_t batch_size_reserved_ = 1;
@@ -117,6 +119,7 @@ public:
     SArray<worker_t> root_id_arr,
     SArray<index_t> storage_id_arr,
     const Initializer &init,
+    const embed_t learning_rate,
     const int verbose
   );
   HetuTable(const HetuTable &) = delete;

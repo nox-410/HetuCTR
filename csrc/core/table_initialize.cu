@@ -126,6 +126,7 @@ HetuTable::HetuTable(
   SArray<worker_t> root_id_arr,
   SArray<index_t> storage_id_arr,
   const Initializer &init,
+  const embed_t learning_rate,
   const int verbose
 ) :
   rank_(rank),
@@ -136,6 +137,7 @@ HetuTable::HetuTable(
   kStorageMax(storage_id_arr.size()),
   pull_bound_(pull_bound),
   push_bound_(push_bound),
+  learning_rate_(learning_rate),
   verbose_(verbose)
 {
   // Check device id

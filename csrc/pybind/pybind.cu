@@ -18,6 +18,7 @@ static std::unique_ptr<HetuTable> makeHetuTable(
   py::array_t<worker_t> root_id_arr,
   py::array_t<index_t> storage_id_arr,
   const Initializer &init,
+  const embed_t learning_rate,
   const int verbose)
 {
   PYTHON_CHECK_ARRAY(root_id_arr);
@@ -30,7 +31,7 @@ static std::unique_ptr<HetuTable> makeHetuTable(
     embedding_length, embedding_width,
     pull_bound, push_bound,
     root_id_arr_shared, storage_id_arr_shared,
-    init, verbose);
+    init, learning_rate, verbose);
 }
 
 static std::unique_ptr<Initializer> makeInitializer(InitType type, float param_a, float param_b) {
@@ -56,7 +57,7 @@ PYBIND11_MODULE(hetuCTR, m) {
       py::arg("length"), py::arg("width"),
       py::arg("pull_bound"), py::arg("push_bound"),
       py::arg("root_arr"), py::arg("storage_arr"),
-      py::arg("init"), py::arg("verbose"))
+      py::arg("init"), py::arg("learning_rate"), py::arg("verbose"))
     .def("preprocess", [](HetuTable &tbl, unsigned long data_ptr, size_t batch_size) {
           py::gil_scoped_release release;
           tbl.preprocess(data_ptr, batch_size);

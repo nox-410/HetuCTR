@@ -37,6 +37,7 @@ __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
     index_t grad_offset = tbl->prev_batch_.d_sorted_arg[j];
     sum += grad[grad_offset * width + wid];
   }
+  sum *= -tbl->learning_rate_;
   if (update_type != 0) dest[wid] += sum;
   else dest_query[wid] = sum;
 
