@@ -140,14 +140,12 @@ __global__ void decide_update_kernel(HetuTable *tbl) {
     index_t offset = tbl->prev_batch_.d_offset[id];
     if (tbl->prev_batch_.d_root[id] == tbl->rank_) {
       tbl->d_need_update_[id] = 0;
-      tbl->d_version_[offset] += update_new;
     } else if (offset == kInvalidIndex) {
       tbl->d_need_update_[id] = 1;
     } else {
       // assert(offset < tbl->kNonLocalStorageMax);
       version_t update_local = tbl->d_updates_[offset];
       tbl->d_need_update_[id] = update_local + update_new <= tbl->push_bound_ ? 0 : 1;
-      tbl->d_updates_[offset] += update_new;
     }
     if (tbl->d_need_update_[id])
       atomicAdd(&tbl->prev_batch_.u_shape[tbl->prev_batch_.d_root[id]], 1);

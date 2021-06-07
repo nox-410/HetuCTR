@@ -32,17 +32,6 @@ __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
 
   index_t l = tbl->prev_batch_.d_run_length[id], r = tbl->prev_batch_.d_run_length[id + 1];
 
-  if (need_update && wid == 0) {
-    version_t update_count = r - l;
-    if (update_type == 2) {
-      update_count = tbl->d_updates_[offset];
-      tbl->d_updates_[offset] = 0;
-      tbl->d_version_[offset] += update_count;
-    }
-    tbl->d_query_gradient_idx_[0][query_idx] = tbl->prev_batch_.d_unique_idx[id];
-    tbl->d_query_updates_[0][query_idx] = update_count;
-  }
-
   embed_t sum = 0;
   for (index_t j = l; j < r; j++) {
     index_t grad_offset = tbl->prev_batch_.d_sorted_arg[j];
@@ -58,9 +47,43 @@ __global__ void gradient_reduction_kernel(HetuTable *tbl, embed_t *grad) {
   }
 }
 
+__global__ void gradient_index_kernel(HetuTable *tbl) {
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id >= tbl->prev_batch_.unique_size) return;
+  bool need_update = tbl->d_need_update_[id];
+  index_t offset = tbl->prev_batch_.d_offset[id];
+
+  int update_type;
+  if (offset == kInvalidIndex)
+    update_type = 0; // not storaged
+  else if (offset >= tbl->kNonLocalStorageMax)
+    update_type = 1; // storaged, local
+  else if (need_update)
+    update_type = 2; // storaged, non-local, update
+  else update_type = 3; // storaged, non-local, no update
+
+  version_t update_count = tbl->prev_batch_.d_run_length[id + 1] - tbl->prev_batch_.d_run_length[id];
+
+  if (update_type == 1)
+    tbl->d_version_[offset] += update_count;
+  else if (update_type >= 2) {
+    tbl->d_updates_[offset] += update_count;
+    if (update_type == 2) {
+      update_count = tbl->d_updates_[offset];
+      tbl->d_updates_[offset] = 0;
+      tbl->d_version_[offset] += update_count;
+    }
+  }
+  if (need_update) {
+    index_t query_idx = tbl->d_update_prefix_[id];
+    tbl->d_query_gradient_idx_[0][query_idx] = tbl->prev_batch_.d_unique_idx[id];
+    tbl->d_query_updates_[0][query_idx] = update_count;
+  }
+}
+
 void HetuTable::generateGradient(embed_t *grad) {
   size_t num_unique = prev_batch_.unique_size;
-
+  gradient_index_kernel<<<DIM_GRID(num_unique), DIM_BLOCK, 0, stream_main_>>>(d_this);
   gradient_reduction_kernel<<<DIM_GRID(num_unique * kEmbeddingWidth), DIM_BLOCK, 0, stream_main_>>>(d_this, grad);
 }
 
