@@ -130,7 +130,7 @@ public:
    * @param data_ptr an address holding index
    * @param len the length of index array
    */
-  void preprocess(unsigned long data_ptr, size_t batch_size);
+  void preprocess(index_t *data_ptr, size_t batch_size);
 
   /**
    * @brief Update embedding Table with the gradients and then fetch embedding value to dst
@@ -138,7 +138,7 @@ public:
    * @param grad points to gradients array
    * @param dst where embedding are written to
    */
-  void pushPull(unsigned long grad, unsigned long dst);
+  void pushPull(embed_t *grad, embed_t *dst);
   std::string debugString();
   std::string debugStringFull();
   ~HetuTable();

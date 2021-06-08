@@ -60,11 +60,11 @@ PYBIND11_MODULE(hetuCTR, m) {
       py::arg("init"), py::arg("learning_rate"), py::arg("verbose"))
     .def("preprocess", [](HetuTable &tbl, unsigned long data_ptr, size_t batch_size) {
           py::gil_scoped_release release;
-          tbl.preprocess(data_ptr, batch_size);
+          tbl.preprocess(reinterpret_cast<index_t *>(data_ptr), batch_size);
       })
     .def("push_pull", [](HetuTable &tbl, unsigned long grad, unsigned long dst) {
           py::gil_scoped_release release;
-          tbl.pushPull(grad, dst);
+          tbl.pushPull(reinterpret_cast<embed_t *>(grad), reinterpret_cast<embed_t *>(dst));
       })
     .def("__repr__", &HetuTable::debugString)
     .def("debug",  &HetuTable::debugStringFull);

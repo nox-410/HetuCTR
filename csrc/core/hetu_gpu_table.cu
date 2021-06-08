@@ -4,9 +4,21 @@
 
 using namespace hetuCTR;
 
-void HetuTable::pushPull(unsigned long grad, unsigned long dst) {
+void HetuTable::pushPull(embed_t *grad, embed_t *dst) {
   checkCudaErrors(cudaSetDevice(device_id_));
-  generateGradient((embed_t*)grad);
+
+  // If no grad is provided, than this batch is considered as inference batch.
+  // Set shapes in previous batch to 0, so that no kernel will be launched and no data will be sent and received
+  if (grad == nullptr) {
+    prev_batch_.batch_size = 0;
+    prev_batch_.unique_size = 0;
+    for (int i = 0; i <= nrank_; i++) {
+      prev_batch_.h_shape[i] = 0;
+      prev_batch_.h_shape_exchanged[i] = 0;
+    }
+  }
+
+  generateGradient(grad);
 
   generateQuery();
 
@@ -20,13 +32,13 @@ void HetuTable::pushPull(unsigned long grad, unsigned long dst) {
 
   all2allReturnValue();
 
-  writeBack((embed_t*)dst);
+  writeBack(dst);
 
   checkCudaErrors(cudaStreamSynchronize(stream_main_));
   return;
 }
 
-void HetuTable::preprocess(unsigned long data_ptr, size_t batch_size) {
+void HetuTable::preprocess(index_t *data_ptr, size_t batch_size) {
   checkCudaErrors(cudaSetDevice(device_id_));
   std::swap(cur_batch_, prev_batch_);
   if (batch_size > batch_size_reserved_) {
@@ -43,7 +55,7 @@ void HetuTable::preprocess(unsigned long data_ptr, size_t batch_size) {
   checkCudaErrors(cudaMemcpyAsync(
     d_this, this, sizeof(HetuTable), cudaMemcpyHostToDevice, stream_main_));
 
-  preprocessIndex((index_t *)(data_ptr), batch_size);
+  preprocessIndex(data_ptr, batch_size);
 
   preprocessGradient();
 
