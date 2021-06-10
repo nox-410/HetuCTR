@@ -2,6 +2,7 @@
 
 #include "core/hetu_gpu_table.h"
 #include "utils/initializer.h"
+#include "utils/thread_pool.h"
 
 using namespace hetuCTR;
 
@@ -41,6 +42,14 @@ static std::unique_ptr<Initializer> makeInitializer(InitType type, float param_a
 PYBIND11_MODULE(hetuCTR, m) {
   m.doc() = "hetuCTR C++/CUDA Implementation"; // module docstring
 
+  // Used for async call
+  typedef std::future<void> wait_t;
+  py::class_<wait_t>(m, "_waittype")
+  .def("wait", [](const wait_t &w){
+    py::gil_scoped_release release;
+    w.wait();
+  });
+
   py::enum_<InitType>(m, "InitType", py::module_local())
     .value("Zero", InitType::kZero)
     .value("Normal", InitType::kNormal)
@@ -59,13 +68,21 @@ PYBIND11_MODULE(hetuCTR, m) {
       py::arg("root_arr"), py::arg("storage_arr"),
       py::arg("init"), py::arg("learning_rate"), py::arg("verbose"))
     .def("preprocess", [](HetuTable &tbl, unsigned long data_ptr, size_t batch_size) {
-          py::gil_scoped_release release;
-          tbl.preprocess(reinterpret_cast<index_t *>(data_ptr), batch_size);
-      })
+      py::gil_scoped_release release;
+      tbl.preprocess(reinterpret_cast<index_t *>(data_ptr), batch_size);
+    })
     .def("push_pull", [](HetuTable &tbl, unsigned long grad, unsigned long dst) {
-          py::gil_scoped_release release;
-          tbl.pushPull(reinterpret_cast<embed_t *>(grad), reinterpret_cast<embed_t *>(dst));
-      })
+      py::gil_scoped_release release;
+      tbl.pushPull(reinterpret_cast<embed_t *>(grad), reinterpret_cast<embed_t *>(dst));
+    })
+    .def("async_push_pull", [](HetuTable &tbl, unsigned long grad, unsigned long dst) {
+      return ThreadPool::Get()->Enqueue(&HetuTable::pushPull, &tbl,
+        reinterpret_cast<embed_t *>(grad), reinterpret_cast<embed_t *>(dst));
+    })
+    .def("async_preprocess", [](HetuTable &tbl, unsigned long data_ptr, size_t batch_size) {
+      return ThreadPool::Get()->Enqueue(&HetuTable::preprocess, &tbl,
+        reinterpret_cast<index_t *>(data_ptr), batch_size);
+    })
     .def("__repr__", &HetuTable::debugString)
     .def("debug",  &HetuTable::debugStringFull);
 
