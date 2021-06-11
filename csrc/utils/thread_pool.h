@@ -17,7 +17,6 @@ class ThreadPool {
 public:
   ThreadPool(size_t thread_num);
   ~ThreadPool();
-  static ThreadPool* Get();
 
   template <class F, class... Args>
   auto Enqueue(F &&f, Args &&... args)

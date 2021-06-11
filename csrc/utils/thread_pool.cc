@@ -1,8 +1,5 @@
 #include "thread_pool.h"
 
-static ThreadPool *pool;
-const size_t kThreadNum = 1;
-
 ThreadPool::ThreadPool(size_t thread_num)
     : terminate_(false), thread_num_(thread_num), complete_task_num_(0) {
   for (size_t i = 0; i < thread_num; ++i) {
@@ -45,11 +42,4 @@ void ThreadPool::Wait(int task_num) {
     usleep(1000);
   }
   complete_task_num_ = 0;
-}
-
-ThreadPool* ThreadPool::Get() {
-  if (!pool) {
-    pool = new ThreadPool(kThreadNum);
-  }
-  return pool;
 }

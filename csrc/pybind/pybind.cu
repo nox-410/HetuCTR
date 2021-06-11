@@ -1,12 +1,12 @@
 #include "pybind.h"
 
-#include "core/hetu_gpu_table.h"
+#include "container.h"
 #include "utils/initializer.h"
 #include "utils/thread_pool.h"
 
 using namespace hetuCTR;
 
-static std::unique_ptr<HetuTable> makeHetuTable(
+static std::unique_ptr<TableContainer> makeTable(
   const int rank,
   const int nrank,
   const int device_id,
@@ -26,7 +26,7 @@ static std::unique_ptr<HetuTable> makeHetuTable(
   PYTHON_CHECK_ARRAY(storage_id_arr);
   SArray<worker_t> root_id_arr_shared(root_id_arr.mutable_data(), root_id_arr.size());
   SArray<index_t> storage_id_arr_shared(storage_id_arr.mutable_data(), storage_id_arr.size());
-  return std::make_unique<HetuTable>(
+  return std::make_unique<TableContainer>(
     rank, nrank, device_id,
     ip, port,
     embedding_length, embedding_width,
@@ -59,31 +59,19 @@ PYBIND11_MODULE(hetuCTR, m) {
   py::class_<Initializer, std::unique_ptr<Initializer>>(m, "Initializer", py::module_local())
     .def(py::init(&makeInitializer));
 
-  py::class_<HetuTable, std::unique_ptr<HetuTable>>(m, "HetuTable", py::module_local())
-    .def(py::init(&makeHetuTable),
+  py::class_<TableContainer, std::unique_ptr<TableContainer>>(m, "HetuTable", py::module_local())
+    .def(py::init(&makeTable),
       py::arg("rank"), py::arg("nrank"), py::arg("device_id"),
       py::arg("ip"), py::arg("port"),
       py::arg("length"), py::arg("width"),
       py::arg("pull_bound"), py::arg("push_bound"),
       py::arg("root_arr"), py::arg("storage_arr"),
       py::arg("init"), py::arg("learning_rate"), py::arg("verbose"))
-    .def("preprocess", [](HetuTable &tbl, unsigned long data_ptr, size_t batch_size) {
-      py::gil_scoped_release release;
-      tbl.preprocess(reinterpret_cast<index_t *>(data_ptr), batch_size);
-    })
-    .def("push_pull", [](HetuTable &tbl, unsigned long grad, unsigned long dst) {
-      py::gil_scoped_release release;
-      tbl.pushPull(reinterpret_cast<embed_t *>(grad), reinterpret_cast<embed_t *>(dst));
-    })
-    .def("async_push_pull", [](HetuTable &tbl, unsigned long grad, unsigned long dst) {
-      return ThreadPool::Get()->Enqueue(&HetuTable::pushPull, &tbl,
-        reinterpret_cast<embed_t *>(grad), reinterpret_cast<embed_t *>(dst));
-    })
-    .def("async_preprocess", [](HetuTable &tbl, unsigned long data_ptr, size_t batch_size) {
-      return ThreadPool::Get()->Enqueue(&HetuTable::preprocess, &tbl,
-        reinterpret_cast<index_t *>(data_ptr), batch_size);
-    })
-    .def("__repr__", &HetuTable::debugString)
-    .def("debug",  &HetuTable::debugStringFull);
+    .def("preprocess", &TableContainer::preprocess)
+    .def("push_pull", &TableContainer::pushPull)
+    .def("async_push_pull", &TableContainer::pushPullAsync)
+    .def("async_preprocess", &TableContainer::preprocessAsync)
+    .def("__repr__", &TableContainer::debugString)
+    .def("debug",  &TableContainer::debugStringFull);
 
 } // PYBIND11_MODULE
