@@ -65,15 +65,27 @@ __global__ void preprocess_batch_data_kernel(HetuTable *tbl) {
         tbl->cur_batch_.u_shape[i] = n;
       }
     }
+  }
+}
 
-    // This computes where we can find the unique index from the original index
-    index_t idx_start, idx_end;
-    idx_start = tbl->cur_batch_.d_run_length[id];
-    idx_end = tbl->cur_batch_.d_run_length[id + 1];
-    for (index_t i = idx_start; i < idx_end; i++) {
-      index_t arg = tbl->cur_batch_.d_sorted_arg[i];
-      tbl->cur_batch_.d_idx_map[arg] = id;
-    }
+__device__ index_t lowerBound(const index_t *data, size_t start, size_t last, index_t target) {
+	while (start < last) {
+		index_t mid = (start + last) / 2;
+		if (data[mid] >= target) last = mid;
+		else start = mid + 1;
+	}
+	return start;
+}
+
+// This computes where we can find the unique index from the original index
+__global__ void compute_idx_map_kernel(HetuTable *tbl) {
+  size_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t n = tbl->cur_batch_.unique_size;
+  if (id < tbl->cur_batch_.batch_size) {
+    index_t embedding_idx = tbl->cur_batch_.d_idx[id];
+    worker_t root = tbl->d_root_[embedding_idx];
+    tbl->cur_batch_.d_idx_map[id] = lowerBound(tbl->cur_batch_.d_unique_idx,
+      tbl->cur_batch_.u_shape[root],  tbl->cur_batch_.u_shape[root + 1], embedding_idx);
   }
 }
 
@@ -114,7 +126,7 @@ void HetuTable::preprocessIndex(index_t *data, size_t batch_size) {
 
   // Computes other preprocess data
   preprocess_batch_data_kernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
-
+  compute_idx_map_kernel<<<DIM_GRID(cur_batch_.batch_size), DIM_BLOCK, 0, stream_main_>>>(d_this);
   // convert offset to shape
   block_cvt_offset_to_shape_kernel<<<1, nrank_ + 1,
     sizeof(size_t) * (nrank_ + 1), stream_main_>>>(cur_batch_.u_shape);
