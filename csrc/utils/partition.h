@@ -7,7 +7,7 @@ namespace hetuCTR {
 
 struct PartitionStruct;
 
-std::unique_ptr<PartitionStruct> partition(const py::array_t<int>& _input_data, int n_part);
+std::unique_ptr<PartitionStruct> partition(const py::array_t<int>& _input_data, int n_part, int batch_size);
 
 void pybindPartition(py::module &m);
 

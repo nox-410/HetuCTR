@@ -24,7 +24,8 @@ int argmax(const std::vector<T> &val) {
 }
 
 struct PartitionStruct {
-  PartitionStruct(const py::array_t<int>& _input_data, int _n_part) : n_part_(_n_part) {
+  PartitionStruct(const py::array_t<int>& _input_data, int _n_part, int _batch_size)
+  : n_part_(_n_part), batch_size_(_batch_size) {
     n_data_ = _input_data.shape(0);
     n_slot_ = _input_data.shape(1);
     n_edge_ = n_data_ * n_slot_;
@@ -204,8 +205,21 @@ struct PartitionStruct {
     std::cout << std::endl;
   }
 
+  auto getPriority() {
+    py::array_t<float> priority({n_part_, n_embed_});
+    for (int i = 0; i < n_part_; i++) {
+      for (int j = 0 ; j < n_embed_; j++) {
+        if (cnt_part_embed_[i][j] == 0) priority.mutable_at(i, j) = 0;
+        else
+          priority.mutable_at(i, j) = std::pow(soft_cnt_[cnt_part_embed_[i][j]], 2l) *
+            ((1.0 / (embed_indptr_[j + 1] - embed_indptr_[j])) + (1.0 / cnt_part_embed_[i][j]));
+      }
+    }
+    return priority;
+  }
+
   int n_part_, n_data_, n_slot_, n_edge_, n_embed_;
-  int batch_size_ = 128;
+  int batch_size_ = 8192;
   std::vector<int> embed_indptr_, embed_indices_;
   std::vector<int> data_indptr_, data_indices_;
   std::vector<int> res_data_, res_embed_;
@@ -214,10 +228,10 @@ struct PartitionStruct {
   std::vector<std::vector<int>> cnt_part_embed_;
 };
 
-std::unique_ptr<PartitionStruct> partition(const py::array_t<int>& _input_data, int n_part) {
+std::unique_ptr<PartitionStruct> partition(const py::array_t<int>& _input_data, int n_part, int batch_size) {
   PYTHON_CHECK_ARRAY(_input_data);
   assert(_input_data.ndim() == 2);
-  return  std::make_unique<PartitionStruct>(_input_data, n_part);
+  return  std::make_unique<PartitionStruct>(_input_data, n_part, batch_size);
 }
 
 void pybindPartition(py::module &m) {
@@ -226,6 +240,7 @@ void pybindPartition(py::module &m) {
     .def("refine_embed", &PartitionStruct::refineEmbed)
     .def("print_balance", &PartitionStruct::printBalance)
     .def("cost_model", &PartitionStruct::costModel)
+    .def("get_priority", &PartitionStruct::getPriority)
     .def("get_result", [](PartitionStruct &func) {
       return py::make_tuple(bind::vec_nocp(func.res_data_), bind::vec_nocp(func.res_embed_));
     });
