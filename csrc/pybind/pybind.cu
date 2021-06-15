@@ -75,6 +75,6 @@ PYBIND11_MODULE(hetuCTR, m) {
     .def("__repr__", &TableContainer::debugString)
     .def("debug",  &TableContainer::debugStringFull);
 
-  m.def("partition", &partition);
+  pybindPartition(m);
 
 } // PYBIND11_MODULE

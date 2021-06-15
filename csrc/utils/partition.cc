@@ -4,9 +4,6 @@
 
 namespace hetuCTR {
 
-using std::pow;
-
-
 static float quickpow(float a,int n) {
     float ans = 1, temp = a;
     while(n) {
@@ -26,9 +23,8 @@ int argmax(const std::vector<T> &val) {
   return arg_res;
 }
 
-class PartitionFunction {
-public:
-  PartitionFunction(const py::array_t<int>& _input_data, int _n_part) : n_part_(_n_part) {
+struct PartitionStruct {
+  PartitionStruct(const py::array_t<int>& _input_data, int _n_part) : n_part_(_n_part) {
     n_data_ = _input_data.shape(0);
     n_slot_ = _input_data.shape(1);
     n_edge_ = n_data_ * n_slot_;
@@ -60,6 +56,8 @@ public:
       embed_indices_[embed_indptr_[embed_id] + count[embed_id]] = data_id;
       count[embed_id]++;
     }
+    initSoftLabel();
+    initResult();
   }
 
   void initResult() {
@@ -102,20 +100,29 @@ public:
   }
 
   float costModel() {
-    std::vector<float> cost(n_part_, 0);
+    std::vector<float> cost(n_part_, 0), cost_out(n_part_, 0);
     for (int i = 0; i < n_part_; i++) {
       for (int j = 0; j < n_embed_; j++) {
-        if (res_embed_[j] != i) cost[res_embed_[j]] += soft_cnt_[cnt_part_embed_[i][j]];
+        if (res_embed_[j] != i) {
+          cost[res_embed_[j]] += soft_cnt_[cnt_part_embed_[i][j]];
+          cost_out[i] += soft_cnt_[cnt_part_embed_[i][j]];
+        }
       }
     }
     float result = 0;
     for (int i = 0; i < n_part_; i++) {
       cost[i] /= (float)n_data_ / (batch_size_ * n_part_);
+      cost_out[i] /= (float)n_data_ / (batch_size_ * n_part_);
       result += cost[i];
     }
-    std::cout << "Cost : ";
+    std::cout << "Cost In: ";
     for (int i = 0; i < n_part_; i++) {
       std::cout << cost[i] << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Cost Out: ";
+    for (int i = 0; i < n_part_; i++) {
+      std::cout << cost_out[i] << " ";
     }
     std::cout << std::endl;
     return result;
@@ -125,7 +132,10 @@ public:
     std::vector<float> score(n_part_);
     for (int i = 0; i < n_data_; i++) {
       int old = res_data_[i];
-      for (int j = 0; j < n_part_; j++) score[j] = -(float)cnt_data_[j] * 0.1;
+      for (int j = 0; j < n_part_; j++) {
+        int data_cnt = old == j ? cnt_data_[j] - 1 : cnt_data_[j];
+        score[j] = -100.0 * data_cnt / (n_data_ / n_part_);
+      }
       for (int j = data_indptr_[i]; j < data_indptr_[i+1]; j++) {
         int embed_id = data_indices_[j];
         int belong = res_embed_[embed_id];
@@ -162,7 +172,8 @@ public:
         cnt[res_data_[embed_indices_[j]]]++;
       }
       for (int j = 0; j < n_part_; j++) {
-        score[j] = soft_cnt_[cnt[j]] - 0.01 * cnt_embed_[j] - 0.01 * embed_weight_[j] * soft_cnt_[embed_indptr_[i+1]-embed_indptr_[i]];
+        score[j] = soft_cnt_[cnt[j]] - 100.0 * cnt_embed_[j] / (n_embed_ / n_part_)
+          - 0.01 * embed_weight_[j] * soft_cnt_[embed_indptr_[i+1]-embed_indptr_[i]];
         cnt[j] = 0;
       }
       int s = argmax(score);
@@ -203,20 +214,22 @@ public:
   std::vector<std::vector<int>> cnt_part_embed_;
 };
 
-py::tuple partition(const py::array_t<int>& _input_data, int n_part) {
+std::unique_ptr<PartitionStruct> partition(const py::array_t<int>& _input_data, int n_part) {
   PYTHON_CHECK_ARRAY(_input_data);
   assert(_input_data.ndim() == 2);
-  auto func = PartitionFunction(_input_data, n_part);
-  func.initSoftLabel();
-  func.initResult();
-  std::cout << func.costModel() << std::endl;
-  for (int i = 0; i < 10; i++) {
-    func.refineData();
-    func.refineEmbed();
-    func.printBalance();
-    std::cout << "Refine " << i << " : " << func.costModel() << std::endl;
-  }
-  return py::make_tuple(bind::vec(func.res_data_), bind::vec(func.res_embed_));
+  return  std::make_unique<PartitionStruct>(_input_data, n_part);
+}
+
+void pybindPartition(py::module &m) {
+  py::class_<PartitionStruct>(m, "_PartitionStruct", py::module_local())
+    .def("refine_data", &PartitionStruct::refineData)
+    .def("refine_embed", &PartitionStruct::refineEmbed)
+    .def("print_balance", &PartitionStruct::printBalance)
+    .def("cost_model", &PartitionStruct::costModel)
+    .def("get_result", [](PartitionStruct &func) {
+      return py::make_tuple(bind::vec_nocp(func.res_data_), bind::vec_nocp(func.res_embed_));
+    });
+  m.def("partition", partition);
 }
 
 }
