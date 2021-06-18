@@ -4,6 +4,8 @@
 
 using namespace hetuCTR;
 
+unsigned long hetuCTR::__seed = 0;
+
 void HetuTable::pushPull(embed_t *grad, embed_t *dst) {
   checkCudaErrors(cudaSetDevice(device_id_));
 

@@ -77,4 +77,6 @@ PYBIND11_MODULE(hetuCTR, m) {
 
   pybindPartition(m);
 
+  m.def("seed", [](unsigned long seed){ __seed = seed; });
+
 } // PYBIND11_MODULE

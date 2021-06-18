@@ -153,9 +153,7 @@ HetuTable::HetuTable(
   initializeTable(root_id_arr, storage_id_arr);
 
   // Initialize Embedding Table with initializer
-  unsigned int seed = 0;
-  seed = std::chrono::system_clock::now().time_since_epoch().count();
-  initialize(d_embedding_, kStorageMax * kEmbeddingWidth, init, false, seed);
+  initialize(d_embedding_, kStorageMax * kEmbeddingWidth, init, false, __seed);
   INFO("Table Init Successfully");
 
   // Initialize preprocess data and auxillary memory

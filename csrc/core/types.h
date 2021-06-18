@@ -38,4 +38,6 @@ const ncclDataType_t index_nccl_t = ncclInt64;
 const ncclDataType_t version_nccl_t = ncclInt64;
 #endif
 
+extern unsigned long __seed;
+
 } // namespace hetuCTR
