@@ -17,12 +17,12 @@ def load_criteo_data():
         data = np.ascontiguousarray(data)
     return data
 
-def direct_partition(data, nparts):
+def direct_partition(data, nparts, batch_size, rerun):
     start = time.time()
-    partition = hetuCTR.partition(data, nparts, 8192)
+    partition = hetuCTR.partition(data, nparts, batch_size)
 
     print(partition.cost_model())
-    for i in range(10):
+    for i in range(rerun):
         partition.refine_data()
         partition.refine_embed()
         partition.print_balance()
@@ -43,5 +43,10 @@ def direct_partition(data, nparts):
     np.savez("partition_{}.npz".format(nparts), **arr_dict)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--nrank", "-n" , type=int, default=8)
+    parser.add_argument("--batch_size", "-b" , type=int, default=8192)
+    parser.add_argument("--rerun", "-r" , type=int, default=10)
+    args = parser.parse_args()
     data = load_criteo_data()
-    direct_partition(data, 8)
+    direct_partition(data, args.nrank, args.batch_size, args.rerun)

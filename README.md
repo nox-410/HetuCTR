@@ -1,1 +1,0 @@
-# Hetu GPU Table
