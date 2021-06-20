@@ -18,7 +18,7 @@ void HetuTable::initializeNCCL(const std::string &ip, const int port) {
 
   int version;
   checkCudaErrors(ncclGetVersion(&version));
-  if (version < 20800)
+  if (version < NCCL_VERSION(2, 8, 0))
     throw std::runtime_error("NCCL version error, required 2.8 but get " + std::to_string(version));
   INFO("Start TCP rendezvous at ", ip, ":", port, " NCCL VERSION=", version);
   TCPRendezvous tcp(rank_, nrank_, ip, port);
