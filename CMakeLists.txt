@@ -22,13 +22,16 @@ find_package(NCCL 2.8 REQUIRED)
 
 include(FetchContent)
 
-FetchContent_Declare(thrust URL https://github.com/NVIDIA/thrust/archive/refs/tags/1.12.0.tar.gz)
-message(STATUS "Preparing thrust ...")
-FetchContent_MakeAvailable(thrust)
+# FetchContent_Declare(thrust URL https://github.com/NVIDIA/thrust/archive/refs/tags/1.12.0.tar.gz)
+# message(STATUS "Preparing thrust ...")
+# FetchContent_MakeAvailable(thrust)
 
-FetchContent_Declare(cub URL https://github.com/NVlabs/cub/archive/refs/tags/1.12.0.tar.gz)
-message(STATUS "Preparing cub ...")
-FetchContent_MakeAvailable(cub)
+# FetchContent_Declare(cub URL https://github.com/NVlabs/cub/archive/refs/tags/1.12.0.tar.gz)
+# message(STATUS "Preparing cub ...")
+# FetchContent_MakeAvailable(cub)
+
+set(cub_SOURCE_DIR $ENV{CONDA_PREFIX}/include)
+set(thrust_SOURCE_DIR $ENV{CONDA_PREFIX}/include)
 
 find_package(ZMQ 4 REQUIRED)
 find_package(pybind11 2.6 CONFIG)
