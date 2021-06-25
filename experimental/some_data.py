@@ -3,7 +3,6 @@ import scipy.sparse as sp
 import time
 import argparse
 import os.path as osp
-import hetuCTR_partition
 
 def load_criteo_data():
     path = osp.dirname(__file__)
