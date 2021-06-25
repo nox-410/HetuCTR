@@ -3,7 +3,6 @@
 #include "container.h"
 #include "utils/initializer.h"
 #include "utils/thread_pool.h"
-#include "utils/partition.h"
 
 using namespace hetuCTR;
 
@@ -74,8 +73,6 @@ PYBIND11_MODULE(hetuCTR, m) {
     .def("async_preprocess", &TableContainer::preprocessAsync)
     .def("__repr__", &TableContainer::debugString)
     .def("debug",  &TableContainer::debugStringFull);
-
-  pybindPartition(m);
 
   m.def("seed", [](unsigned long seed){ __seed = seed; });
 

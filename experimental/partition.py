@@ -4,13 +4,13 @@ import time
 import argparse
 import os.path as osp
 
-import hetuCTR
+import hetuCTR_partition
 
 def load_criteo_data():
     path = osp.dirname(__file__)
     fname = osp.join(path, "../.dataset/criteo/train_sparse_feats.npy")
     # fname = osp.join(path, "../.dataset/avazu/sparse.npy")
-    # fname = osp.join(osp.dirname(__file__), "small_data.npy")
+    fname = osp.join(osp.dirname(__file__), "small_data.npy")
     assert osp.exists(fname)
     data = np.load(fname)
     if not data.data.c_contiguous:
@@ -19,7 +19,7 @@ def load_criteo_data():
 
 def direct_partition(data, nparts, batch_size, rerun):
     start = time.time()
-    partition = hetuCTR.partition(data, nparts, batch_size)
+    partition = hetuCTR_partition.partition(data, nparts, batch_size)
 
     print(partition.cost_model())
     for i in range(rerun):
