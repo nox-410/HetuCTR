@@ -23,7 +23,7 @@ int argmax(const std::vector<T> &val) {
   return arg_res;
 }
 
-PartitionStruct::PartitionStruct(const py::array_t<int>& _input_data, int _n_part, int _batch_size)
+PartitionStruct::PartitionStruct(const py::array_t<int>& _input_data, const py::array_t<float>& _comm_mat, int _n_part, int _batch_size)
 : n_part_(_n_part), batch_size_(_batch_size) {
   n_data_ = _input_data.shape(0);
   n_slot_ = _input_data.shape(1);
@@ -85,48 +85,14 @@ PartitionStruct::PartitionStruct(const py::array_t<int>& _input_data, int _n_par
   // init param
   alpha_ = -100.0 / (n_data_ / n_part_);
   beta_ = -100.0 / (n_embed_ / n_part_);
-}
-
-int PartitionStruct::edgecut() {
-  int result = 0;
-  for (int i = 0; i < n_data_; i++) {
-    for (int j = data_indptr_[i]; j < data_indptr_[i+1]; j++)
-      if (res_data_[i] != res_embed_[data_indices_[j]]) result++;
-  }
-  return result;
-}
-
-float PartitionStruct::costModel() {
-  std::vector<float> cost(n_part_, 0), cost_out(n_part_, 0);
-  for (int i = 0; i < n_part_; i++) {
-    for (int j = 0; j < n_embed_; j++) {
-      if (res_embed_[j] != i) {
-        cost[res_embed_[j]] += soft_cnt_[cnt_part_embed_[i][j]];
-        cost_out[i] += soft_cnt_[cnt_part_embed_[i][j]];
-      }
-    }
-  }
-  float result = 0;
-  for (int i = 0; i < n_part_; i++) {
-    cost[i] /= (float)n_data_ / (batch_size_ * n_part_);
-    cost_out[i] /= (float)n_data_ / (batch_size_ * n_part_);
-    result += cost[i];
-  }
-  std::cout << "Cost In: ";
-  for (int i = 0; i < n_part_; i++) {
-    std::cout << cost[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "Cost Out: ";
-  for (int i = 0; i < n_part_; i++) {
-    std::cout << cost_out[i] << " ";
-  }
-  std::cout << std::endl;
-  return result;
+  // init communication matrix
+  comm_mat_.resize(n_part_, std::vector<float>(n_part_));
+  for (int i = 0; i < n_part_; i++)
+    for (int j = 0; j < n_part_; j++) comm_mat_[i][j] = _comm_mat.at(i, j);
 }
 
 void PartitionStruct::refineData() {
-  //#pragma omp parallel for num_threads(16)
+  #pragma omp parallel for num_threads(16)
   for (int i = 0; i < n_data_; i++) {
     std::vector<float> score(n_part_, 0);
     int old = res_data_[i];
@@ -137,10 +103,13 @@ void PartitionStruct::refineData() {
     for (int j = data_indptr_[i]; j < data_indptr_[i+1]; j++) {
       int embed_id = data_indices_[j];
       int belong = res_embed_[embed_id];
-      score[belong]++;
+      for (int k = 0; k < n_part_; k++) {
+        int use_cnt = k == old ? cnt_part_embed_[k][embed_id] - 1 : cnt_part_embed_[k][embed_id];
+        score[k] -= (soft_cnt_[use_cnt + 1] - soft_cnt_[use_cnt]) * comm_mat_[k][belong];
+      }
     }
     int s = argmax(score);
-    //#pragma omp critical
+    #pragma omp critical
     if (s != old) {
       cnt_data_[old]--;
       cnt_data_[s]++;
@@ -162,21 +131,26 @@ void PartitionStruct::refineEmbed() {
     }
   }
   for (int i = 0; i < n_part_; i++)
-    embed_weight_[i] /= (float)n_data_ / (batch_size_ * n_part_);
+    embed_weight_[i] *= float(batch_size_ * n_part_) / n_data_;
 
-  std::vector<float> score(n_part_), cnt(n_part_, 0);
+  #pragma omp parallel for num_threads(16)
   for (int i = 0; i < n_embed_; i++) {
+    std::vector<float> score(n_part_), cnt(n_part_, 0);
     int old = res_embed_[i];
     for (int j = embed_indptr_[i]; j < embed_indptr_[i+1]; j++) {
       cnt[res_data_[embed_indices_[j]]]++;
     }
     for (int j = 0; j < n_part_; j++) {
       int cnt_embed = old == j ? cnt_embed_[j] - 1 : cnt_embed_[j];
-      score[j] = soft_cnt_[cnt[j]] + beta_ * cnt_embed -
-        0.01 * embed_weight_[j] * soft_cnt_[embed_indptr_[i+1]-embed_indptr_[i]];
-      cnt[j] = 0;
+      score[j] = beta_ * cnt_embed;
+    }
+    for (int j = 0; j < n_part_; j++) {
+      for (int k = 0; k < n_part_; k++)
+        score[k] -= comm_mat_[j][k] * soft_cnt_[cnt[j]];
+      score[j] -= 0.01 * embed_weight_[j] * soft_cnt_[embed_indptr_[i+1]-embed_indptr_[i]];
     }
     int s = argmax(score);
+    #pragma omp critical
     if (s != old) {
       cnt_embed_[old]--;
       cnt_embed_[s]++;
@@ -191,17 +165,18 @@ void PartitionStruct::refineEmbed() {
   }
 }
 
-void PartitionStruct::printBalance() {
-  std::cout << "Data : ";
-  for (int i = 0; i < n_part_; i++) {
-    std::cout << cnt_data_[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "Embed : ";
-  for (int i = 0; i < n_part_; i++) {
-    std::cout << cnt_embed_[i] << " ";
-  }
-  std::cout << std::endl;
+py::array_t<float> PartitionStruct::getCommunication() {
+  py::array_t<float> cost({n_part_, n_part_});
+  for (int i = 0; i < n_part_; i++)
+    for (int j = 0; j < n_part_; j++)
+      cost.mutable_at(i, j) = 0;
+  for (int i = 0; i < n_part_; i++)
+    for (int j = 0; j < n_embed_; j++)
+      cost.mutable_at(i, res_embed_[j]) += soft_cnt_[cnt_part_embed_[i][j]];
+  for (int i = 0; i < n_part_; i++)
+    for (int j = 0; j < n_part_; j++)
+      cost.mutable_at(i, j) *= float(batch_size_ * n_part_) / n_data_;
+  return cost;
 }
 
 py::array_t<float> PartitionStruct::getPriority() {
@@ -210,17 +185,24 @@ py::array_t<float> PartitionStruct::getPriority() {
     for (int j = 0 ; j < n_embed_; j++) {
       if (cnt_part_embed_[i][j] == 0) priority.mutable_at(i, j) = 0;
       else
-        priority.mutable_at(i, j) = std::pow(soft_cnt_[cnt_part_embed_[i][j]], 2l) *
+        priority.mutable_at(i, j) = comm_mat_[i][res_embed_[j]] * std::pow(soft_cnt_[cnt_part_embed_[i][j]], 2l) *
           ((1.0 / (embed_indptr_[j + 1] - embed_indptr_[j])) + (1.0 / cnt_part_embed_[i][j]));
     }
   }
   return priority;
 }
 
-std::unique_ptr<PartitionStruct> partition(const py::array_t<int>& _input_data, int n_part, int batch_size) {
+std::unique_ptr<PartitionStruct> partition(
+  const py::array_t<int>& _input_data,
+  const py::array_t<float>& _comm_mat,
+  int n_part, int batch_size) {
   PYTHON_CHECK_ARRAY(_input_data);
+  PYTHON_CHECK_ARRAY(_comm_mat);
   assert(_input_data.ndim() == 2);
-  return  std::make_unique<PartitionStruct>(_input_data, n_part, batch_size);
+  assert(_comm_mat.ndim() == 2);
+  assert(_comm_mat.shape(0) == _comm_mat.shape(1));
+  assert(_comm_mat.shape(0) == n_part);
+  return  std::make_unique<PartitionStruct>(_input_data, _comm_mat, n_part, batch_size);
 }
 
 }

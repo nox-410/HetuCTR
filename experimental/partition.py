@@ -9,24 +9,43 @@ import hetuCTR_partition
 def load_criteo_data():
     path = osp.dirname(__file__)
     fname = osp.join(path, "../.dataset/criteo/train_sparse_feats.npy")
-    # fname = osp.join(path, "../.dataset/avazu/sparse.npy")
-    fname = osp.join(osp.dirname(__file__), "small_data.npy")
+    #fname = osp.join(path, "../.dataset/avazu/sparse.npy")
+    #fname = osp.join(osp.dirname(__file__), "small_data.npy")
     assert osp.exists(fname)
     data = np.load(fname)
     if not data.data.c_contiguous:
         data = np.ascontiguousarray(data)
     return data
 
-def direct_partition(data, nparts, batch_size, rerun):
-    start = time.time()
-    partition = hetuCTR_partition.partition(data, nparts, batch_size)
+def get_comm_mat(nrank, ngpus):
+    mat = np.ones([nrank, nrank])
+    for i in range(nrank):
+        for j in range(nrank):
+            if i == j:
+                mat[i, j] = 0
+            elif i // ngpus == j // ngpus:
+                mat[i, j] = 0.1
+            else:
+                mat[i, j] = 1
+    return mat
 
-    print(partition.cost_model())
+def direct_partition(data, nparts, ngpus, batch_size, rerun):
+    start = time.time()
+    mat = get_comm_mat(nparts, ngpus)
+    partition = hetuCTR_partition.partition(data, mat, nparts, batch_size)
+
+    cost = partition.get_communication()
+    print("Initial cost : {}".format(np.multiply(cost, mat).sum()))
     for i in range(rerun):
         partition.refine_data()
         partition.refine_embed()
-        partition.print_balance()
-        print("Refine %d:" % i, partition.cost_model())
+        cost = partition.get_communication()
+        print("Refine round {} : {}".format(i, np.multiply(cost, mat).sum()))
+        print("Data :", partition.get_data_cnt())
+        print("Embed:", partition.get_embed_cnt())
+        print("In   :", np.sum(cost, axis=0))
+        print("Out  :", np.sum(cost, axis=1))
+        print(cost.astype(np.int))
     item_partition, idx_partition = partition.get_result()
     print("Partition Time : ", time.time()-start)
     start = time.time()
@@ -40,13 +59,15 @@ def direct_partition(data, nparts, batch_size, rerun):
         arr_dict[str(i)] = arr
     print("Sort priority Time : ", time.time()-start)
 
-    np.savez("partition_{}.npz".format(nparts), **arr_dict)
+    np.savez(args.output, **arr_dict)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--nrank", "-n" , type=int, default=8)
     parser.add_argument("--batch_size", "-b" , type=int, default=8192)
     parser.add_argument("--rerun", "-r" , type=int, default=10)
+    parser.add_argument("--ngpus", "-g" , type=int, default=8)
+    parser.add_argument("--output", "-o" , type=str, default="partition.npz")
     args = parser.parse_args()
     data = load_criteo_data()
-    direct_partition(data, args.nrank, args.batch_size, args.rerun)
+    direct_partition(data, args.nrank, args.ngpus, args.batch_size, args.rerun)
